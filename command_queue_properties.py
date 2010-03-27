@@ -1,0 +1,2 @@
+CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE      = (1 << 0)
+CL_QUEUE_PROFILING_ENABLE                   = (1 << 1)
