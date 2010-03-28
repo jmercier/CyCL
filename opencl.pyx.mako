@@ -263,12 +263,74 @@ cdef CLProgram _createProgramWithSource(CLContext context, bytes pystring):
 ${init_instance(['context', 'program'], '    ')}
     return instance
 
+cdef CLKernel _createKernel(CLProgram program, bytes string):
+    cdef cl_kernel kernel
+    cdef cl_int errcode
+    kernel = clCreateKernel(program._program, string, &errcode)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+    cdef CLKernel instance = CLKernel.__new__(CLKernel)
+${init_instance(['program', 'kernel'], '    ')}
+    return instance
+
+cdef bytes getBuildLog(CLProgram program, CLDevice device):
+    cdef char log[10000]
+    cdef size_t size
+    cdef cl_int errcode
+    errcode = clGetProgramBuildInfo(program._program, device._device, CL_PROGRAM_BUILD_LOG, MAX_PROGRAM_BUILD_LOG, log, &size)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+    s = log[:size]
+    return s
+
+cdef list _createKernelsInProgram(CLProgram program):
+    cdef cl_kernel kernels[20]
+    cdef cl_int num_kernels
+    cdef cl_int errcode
+    errcode = clCreateKernelsInProgram(program._program, MAX_KERNELS_IN_PROGRAM, kernels, &num_kernels)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+    cdef list pykernels = []
+    cdef CLKernel instance
+    cdef int i
+    for i in xrange(num_kernels):
+        instance = CLKernel.__new__(CLKernel)
+        instance._kernel = kernels[i]
+        instance._program = program
+        pykernels.append(instance)
+    return pykernels
+
+cdef void _finish(CLCommandQueue queue) except *:
+    cdef cl_int errcode
+    errcode = clFinish(queue._command_queue)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+
+cdef void _flush(CLCommandQueue queue) except *:
+    cdef cl_int errcode
+    errcode = clFlush(queue._command_queue)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+
+
+cdef void _build(CLProgram program, list options) except *:
+    cdef cl_int errcode = clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
+
 ${makesection("Classes")}
 cdef class CLCommandQueue(CLObject):
 ${make_dealloc("clReleaseCommandQueue(self._command_queue)")}
+    def flush(self):
+        _flush(self)
+
+    def finish(self):
+        _finish(self)
 
 cdef class CLProgram(CLObject):
 ${make_dealloc("clReleaseProgram(self._program)")}
+    def createKernelsInProgram(self):
+        return _createKernelsInProgram(self)
+
+    def createKernel(self, bytes string):
+        return _createKernel(self, string)
+
+    def getBuildLog(self, CLDevice device):
+        return _getBuildLog(self, device)
 
 cdef class CLDevice(CLObject):
 ${properties_getter("Device", "_device", device_properties)}
@@ -278,6 +340,8 @@ cdef class CLPlatform(CLObject):
 ${properties_getter("Platform", "_platform", platform_properties)}
     def getDevices(self, cl_device_type dtype = 0xFFFFFFFF):
         return _getDevices(self._platform, dtype)
+    def build(self, list options = []):
+        _build(self, options)
 ${properties_repr(['name', 'vendor', 'version'])}
 
 cdef class CLBuffer(CLObject):
@@ -365,6 +429,17 @@ cpdef CLContext createContext(list devices):
     instance = CLContext.__new__(CLContext)
     ${init_instance(['context', 'devices'], '    ')}
     return instance
+
+cpdef waitForEvents(list events):
+    cdef int num_events = len(events)
+    cdef cl_event lst[100]
+    cdef CLEvent evt
+    cdef cl_int errcode
+
+    for i from 0 <= i < min(num_events, 100):
+        lst[i] = (<CLEvent>events[i])._event
+    errcode = clWaitForEvents(num_events, lst)
+    if errcode < 0: raise translateError(errcode)
 
 <%def name="makesection(name)">
 #
