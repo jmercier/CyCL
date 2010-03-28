@@ -1,79 +1,320 @@
+# Copyright (c) 2010 Jean-Pascal Mercier
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+
 cimport opencl
-cimport libopencl
+cimport numpy as np
+cimport python_buffer as pybuffer
+from opencl cimport *
+from python_object cimport PyObject
+
+from stdio cimport *
+
+import struct
+from defines import *
+
+
+############################################
+#
+#   Translation Tables Section
+#
+############################################
 
 cdef dict error_translation_table = \
-        {  CL_DEVICE_NOT_FOUND : "CL_DEVICE_NOT_FOUND",
-           CL_DEVICE_NOT_AVAILABLE : "CL_DEVICE_NOT_AVAILABLE",
-           CL_COMPILER_NOT_AVAILABLE : "CL_COMPILER_NOT_AVAILABLE",
-           CL_MEM_OBJECT_ALLOCATION_FAILURE : "CL_MEM_OBJECT_ALLOCATION_FAILURE",
-           CL_OUT_OF_RESOURCES : "CL_OUT_OF_RESOURCES",
-           CL_OUT_OF_HOST_MEMORY : "CL_OUT_OF_HOST_MEMORY",
-           CL_PROFILING_INFO_NOT_AVAILABLE : "CL_PROFILING_INFO_NOT_AVAILABLE",
-           CL_MEM_COPY_OVERLAP : "CL_MEM_COPY_OVERLAP",
-           CL_IMAGE_FORMAT_MISMATCH : "CL_IMAGE_FORMAT_MISMATCH",
-           CL_IMAGE_FORMAT_NOT_SUPPORTED : "CL_IMAGE_FORMAT_NOT_SUPPORTED",
-           CL_BUILD_PROGRAM_FAILURE : "CL_BUILD_PROGRAM_FAILURE",
-           CL_MAP_FAILURE : "CL_MAP_FAILURE",
-           CL_INVALID_VALUE : "CL_INVALID_VALUE",
-           CL_INVALID_DEVICE_TYPE : "CL_INVALID_DEVICE_TYPE",
-           CL_INVALID_PLATFORM : "CL_INVALID_PLATFORM",
-           CL_INVALID_DEVICE : "CL_INVALID_DEVICE",
-           CL_INVALID_CONTEXT : "CL_INVALID_CONTEXT",
-           CL_INVALID_QUEUE_PROPERTIES : "CL_INVALID_QUEUE_PROPERTIES",
-           CL_INVALID_COMMAND_QUEUE : "CL_INVALID_COMMAND_QUEUE",
-           CL_INVALID_HOST_PTR : "CL_INVALID_HOST_PTR",
-           CL_INVALID_MEM_OBJECT : "CL_INVALID_MEM_OBJECT",
-           CL_INVALID_IMAGE_FORMAT_DESCRIPTOR : "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR",
-           CL_INVALID_IMAGE_SIZE : "CL_INVALID_IMAGE_SIZE",
-           CL_INVALID_SAMPLER : "CL_INVALID_SAMPLER",
-           CL_INVALID_BINARY : "CL_INVALID_BINARY",
-           CL_INVALID_BUILD_OPTIONS : "CL_INVALID_BUILD_OPTIONS",
-           CL_INVALID_PROGRAM : "CL_INVALID_PROGRAM",
-           CL_INVALID_PROGRAM_EXECUTABLE : "CL_INVALID_PROGRAM_EXECUTABLE",
-           CL_INVALID_KERNEL_NAME : "CL_INVALID_KERNEL_NAME",
-           CL_INVALID_KERNEL_DEFINITION : "CL_INVALID_KERNEL_DEFINITION",
-           CL_INVALID_KERNEL : "CL_INVALID_KERNEL",
-           CL_INVALID_ARG_INDEX : "CL_INVALID_ARG_INDEX",
-           CL_INVALID_ARG_VALUE : "CL_INVALID_ARG_VALUE",
-           CL_INVALID_ARG_SIZE : "CL_INVALID_ARG_SIZE",
-           CL_INVALID_KERNEL_ARGS : "CL_INVALID_KERNEL_ARGS",
-           CL_INVALID_WORK_DIMENSION : "CL_INVALID_WORK_DIMENSION",
-           CL_INVALID_WORK_GROUP_SIZE : "CL_INVALID_WORK_GROUP_SIZE",
-           CL_INVALID_WORK_ITEM_SIZE : "CL_INVALID_WORK_ITEM_SIZE",
-           CL_INVALID_GLOBAL_OFFSET : "CL_INVALID_GLOBAL_OFFSET",
-           CL_INVALID_EVENT_WAIT_LIST : "CL_INVALID_EVENT_WAIT_LIST",
-           CL_INVALID_EVENT : "CL_INVALID_EVENT",
-           CL_INVALID_OPERATION : "CL_INVALID_OPERATION",
-           CL_INVALID_GL_OBJECT : "CL_INVALID_GL_OBJECT",
-           CL_INVALID_BUFFER_SIZE : "CL_INVALID_BUFFER_SIZE",
-           CL_INVALID_MIP_LEVEL : "CL_INVALID_MIP_LEVEL",
-           CL_INVALID_GLOBAL_WORK_SIZE : "CL_INVALID_GLOBAL_WORK_SIZE",
-           -1001 : "CL_PLATFORM_NOT_FOUND_KHR"}
+        {  CL_DEVICE_NOT_FOUND                  : "CL_DEVICE_NOT_FOUND",
+           CL_DEVICE_NOT_AVAILABLE              : "CL_DEVICE_NOT_AVAILABLE",
+           CL_COMPILER_NOT_AVAILABLE            : "CL_COMPILER_NOT_AVAILABLE",
+           CL_MEM_OBJECT_ALLOCATION_FAILURE     : "CL_MEM_OBJECT_ALLOCATION_FAILURE",
+           CL_OUT_OF_RESOURCES                  : "CL_OUT_OF_RESOURCES",
+           CL_OUT_OF_HOST_MEMORY                : "CL_OUT_OF_HOST_MEMORY",
+           CL_PROFILING_INFO_NOT_AVAILABLE      : "CL_PROFILING_INFO_NOT_AVAILABLE",
+           CL_MEM_COPY_OVERLAP                  : "CL_MEM_COPY_OVERLAP",
+           CL_IMAGE_FORMAT_MISMATCH             : "CL_IMAGE_FORMAT_MISMATCH",
+           CL_IMAGE_FORMAT_NOT_SUPPORTED        : "CL_IMAGE_FORMAT_NOT_SUPPORTED",
+           CL_BUILD_PROGRAM_FAILURE             : "CL_BUILD_PROGRAM_FAILURE",
+           CL_MAP_FAILURE                       : "CL_MAP_FAILURE",
+           CL_INVALID_VALUE                     : "CL_INVALID_VALUE",
+           CL_INVALID_DEVICE_TYPE               : "CL_INVALID_DEVICE_TYPE",
+           CL_INVALID_PLATFORM                  : "CL_INVALID_PLATFORM",
+           CL_INVALID_DEVICE                    : "CL_INVALID_DEVICE",
+           CL_INVALID_CONTEXT                   : "CL_INVALID_CONTEXT",
+           CL_INVALID_QUEUE_PROPERTIES          : "CL_INVALID_QUEUE_PROPERTIES",
+           CL_INVALID_COMMAND_QUEUE             : "CL_INVALID_COMMAND_QUEUE",
+           CL_INVALID_HOST_PTR                  : "CL_INVALID_HOST_PTR",
+           CL_INVALID_MEM_OBJECT                : "CL_INVALID_MEM_OBJECT",
+           CL_INVALID_IMAGE_FORMAT_DESCRIPTOR   : "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR",
+           CL_INVALID_IMAGE_SIZE                : "CL_INVALID_IMAGE_SIZE",
+           CL_INVALID_SAMPLER                   : "CL_INVALID_SAMPLER",
+           CL_INVALID_BINARY                    : "CL_INVALID_BINARY",
+           CL_INVALID_BUILD_OPTIONS             : "CL_INVALID_BUILD_OPTIONS",
+           CL_INVALID_PROGRAM                   : "CL_INVALID_PROGRAM",
+           CL_INVALID_PROGRAM_EXECUTABLE        : "CL_INVALID_PROGRAM_EXECUTABLE",
+           CL_INVALID_KERNEL_NAME               : "CL_INVALID_KERNEL_NAME",
+           CL_INVALID_KERNEL_DEFINITION         : "CL_INVALID_KERNEL_DEFINITION",
+           CL_INVALID_KERNEL                    : "CL_INVALID_KERNEL",
+           CL_INVALID_ARG_INDEX                 : "CL_INVALID_ARG_INDEX",
+           CL_INVALID_ARG_VALUE                 : "CL_INVALID_ARG_VALUE",
+           CL_INVALID_ARG_SIZE                  : "CL_INVALID_ARG_SIZE",
+           CL_INVALID_KERNEL_ARGS               : "CL_INVALID_KERNEL_ARGS",
+           CL_INVALID_WORK_DIMENSION            : "CL_INVALID_WORK_DIMENSION",
+           CL_INVALID_WORK_GROUP_SIZE           : "CL_INVALID_WORK_GROUP_SIZE",
+           CL_INVALID_WORK_ITEM_SIZE            : "CL_INVALID_WORK_ITEM_SIZE",
+           CL_INVALID_GLOBAL_OFFSET             : "CL_INVALID_GLOBAL_OFFSET",
+           CL_INVALID_EVENT_WAIT_LIST           : "CL_INVALID_EVENT_WAIT_LIST",
+           CL_INVALID_EVENT                     : "CL_INVALID_EVENT",
+           CL_INVALID_OPERATION                 : "CL_INVALID_OPERATION",
+           CL_INVALID_GL_OBJECT                 : "CL_INVALID_GL_OBJECT",
+           CL_INVALID_BUFFER_SIZE               : "CL_INVALID_BUFFER_SIZE",
+           CL_INVALID_MIP_LEVEL                 : "CL_INVALID_MIP_LEVEL",
+           CL_INVALID_GLOBAL_WORK_SIZE          : "CL_INVALID_GLOBAL_WORK_SIZE",
+           -1001                                : "CL_PLATFORM_NOT_FOUND_KHR"}
 
 cdef dict device_type_translation_table = \
-            { CL_DEVICE_TYPE_DEFAULT : "DEFAULT",
-              CL_DEVICE_TYPE_CPU : "CPU",
-              CL_DEVICE_TYPE_GPU : "GPU",
-              CL_DEVICE_TYPE_ACCELERATOR : "ACCELERATOR" }
+            { CL_DEVICE_TYPE_DEFAULT            : "DEFAULT",
+              CL_DEVICE_TYPE_CPU                : "CPU",
+              CL_DEVICE_TYPE_GPU                : "GPU",
+              CL_DEVICE_TYPE_ACCELERATOR        : "ACCELERATOR" }
+
+cdef dict filter_mode_translation_table = \
+              { CL_FILTER_NEAREST              : "nearest",
+                CL_FILTER_LINEAR               : "linear" }
+
+cdef dict addressing_mode_translation_table = \
+              { CL_ADDRESS_NONE                 : "none",
+                CL_ADDRESS_CLAMP_TO_EDGE        : "clamp_to_edge",
+                CL_ADDRESS_CLAMP                : "clamp",
+                CL_ADDRESS_REPEAT               : "repeat"}
+
+cdef dict event_status_translation_table = \
+              { CL_COMPLETE                     : "complete",
+                CL_RUNNING                      : "running",
+                CL_SUBMITTED                    : "submitted",
+                CL_QUEUED                       : "queue" }
+
+cdef dict event_type_translation_table = \
+              { CL_COMMAND_NDRANGE_KERNEL       : "ndrange_kernel",
+                CL_COMMAND_TASK                 : "task",
+                CL_COMMAND_NATIVE_KERNEL        : "native_kernel",
+                CL_COMMAND_READ_BUFFER          : "read_buffer",
+                CL_COMMAND_WRITE_BUFFER         : "write_buffer",
+                CL_COMMAND_COPY_BUFFER          : "copy_buffer",
+                CL_COMMAND_READ_IMAGE           : "read_image",
+                CL_COMMAND_WRITE_IMAGE          : "write_image",
+                CL_COMMAND_COPY_IMAGE           : "copy_image",
+                CL_COMMAND_COPY_IMAGE_TO_BUFFER : "copy_image_to_buffer",
+                CL_COMMAND_COPY_BUFFER_TO_IMAGE : "copy_buffer_to_image",
+                CL_COMMAND_MAP_BUFFER           : "map_buffer",
+                CL_COMMAND_MAP_IMAGE            : "map_image",
+                CL_COMMAND_UNMAP_MEM_OBJECT     : "unmap_mem_object",
+                CL_COMMAND_MARKER               : "marker",
+                CL_COMMAND_ACQUIRE_GL_OBJECTS   : "acquire_gl_object",
+                CL_COMMAND_RELEASE_GL_OBJECTS   : "release_gl_object" }
+
+cdef dict image_channel_type_translation_table = \
+            {   CL_SNORM_INT8                   : "int8",
+                CL_SNORM_INT16                  : "int16",
+                CL_UNORM_INT8                   : "uint8",
+                CL_UNORM_INT16                  : "uint16",
+                CL_UNORM_SHORT_565              : "ushort 565",
+                CL_UNORM_SHORT_555              : "ushort 555",
+                CL_UNORM_INT_101010             : "int 101010",
+                CL_SIGNED_INT8                  : "int8",
+                CL_SIGNED_INT16                 : "int16",
+                CL_SIGNED_INT32                 : "int32",
+                CL_UNSIGNED_INT8                : "uint8",
+                CL_UNSIGNED_INT16               : "uint16",
+                CL_UNSIGNED_INT32               : "uint32",
+                CL_HALF_FLOAT                   : "half float",
+                CL_FLOAT                        : "float" }
+
+cdef dict image_channel_order_translation_table = \
+            { CL_R                                        : "r",
+              CL_A                                        : "a",
+              CL_RG                                       : "rg",
+              CL_RA                                       : "ra",
+              CL_RGB                                      : "rgb",
+              CL_RGBA                                     : "rgba",
+              CL_BGRA                                     : "bgra",
+              CL_ARGB                                     : "argb",
+              CL_INTENSITY                                : "intensity",
+              CL_LUMINANCE                                : "luminance"}
+
 
 cdef CLError translateError(cl_int error):
     return CLError(error_translation_table[error])
 
+
 DEF MAX_OPENCL_PLATFORM_NUMBER                  = 10
 DEF MAX_OPENCL_DEVICES_NUMBER                   = 10
+DEF MAX_KERNELS_IN_PROGRAM                      = 100
+DEF MAX_PROGRAM_BUILD_OPTIONS                   = 20
+DEF MAX_PROGRAM_BUILD_LOG                       = 10000
 
-cdef _getPlatformInfo(cl_platform_id platform, cl_platform_info param_name):
-    cdef char value[100]
+cdef param from_byte(object val) except *:
+    cdef param p
+    p.byte_value = <np.npy_byte>val
+    return p
+
+cdef param from_ubyte(object val) except *:
+    cdef param p
+    p.byte_value = <np.npy_ubyte>val
+    return p
+
+cdef param from_short(object val) except *:
+    cdef param p
+    p.short_value = <np.npy_short>val
+    return p
+
+cdef param from_ushort(object val) except *:
+    cdef param p
+    p.ushort_value = <np.npy_ushort>val
+    return p
+
+cdef param from_int32(object val) except *:
+    cdef param p
+    p.int32_value = <np.npy_int32>val
+    return p
+
+cdef param from_uint32(object val) except *:
+    cdef param p
+    p.uint32_value = <np.npy_uint32>val
+    return p
+
+cdef param from_int64(object val) except *:
+    cdef param p
+    p.int64_value = <np.npy_int64>val
+    return p
+
+cdef param from_uint64(object val) except *:
+    cdef param p
+    p.uint64_value = <np.npy_uint64>val
+    return p
+
+cdef param from_float32(object val) except *:
+    cdef param p
+    p.float32_value = <np.npy_float32>val
+    return p
+
+cdef param from_float64(object val) except *:
+    cdef param p
+    p.float64_value = <np.npy_float64>val
+    return p
+
+cdef param from_float128(object val) except *:
+    cdef param p
+    p.float128_value = <np.npy_float128>val
+    return p
+
+cdef param from_intp(object val) except *:
+    cdef param p
+    p.intp_value = <np.npy_intp>val
+    return p
+
+cdef param from_CLBuffer(object val) except *:
+    cdef CLBuffer buf_val = val
+    cdef param p
+    p.mem_value = buf_val._mem
+    return p
+
+cdef param from_CLSampler(object val) except *:
+    cdef CLSampler buf_val = val
+    cdef param p
+    p.sampler_value = buf_val._sampler
+    return p
+
+
+DEF NUM_PARAM_CONVERTERS                        = 14
+cdef ptype param_converter_array[NUM_PARAM_CONVERTERS]
+param_converter_array[0].itemsize = sizeof(np.npy_byte)
+param_converter_array[0].fct = from_byte
+
+param_converter_array[1].itemsize = sizeof(np.npy_ubyte)
+param_converter_array[1].fct = from_ubyte
+
+param_converter_array[2].itemsize = sizeof(np.npy_short)
+param_converter_array[2].fct = from_short
+
+param_converter_array[3].itemsize = sizeof(np.npy_ushort)
+param_converter_array[4].fct = from_ushort
+
+param_converter_array[4].itemsize = sizeof(np.npy_int32)
+param_converter_array[4].fct = from_int32
+
+param_converter_array[5].itemsize = sizeof(np.npy_uint32)
+param_converter_array[5].fct = from_uint32
+
+param_converter_array[6].itemsize = sizeof(np.npy_int64)
+param_converter_array[6].fct = from_int64
+
+param_converter_array[7].itemsize = sizeof(np.npy_uint64)
+param_converter_array[7].fct = from_uint64
+
+param_converter_array[8].itemsize = sizeof(np.npy_intp)
+param_converter_array[8].fct = from_intp
+
+param_converter_array[9].itemsize = sizeof(np.npy_float32)
+param_converter_array[9].fct = from_float32
+
+param_converter_array[10].itemsize = sizeof(np.npy_float64)
+param_converter_array[10].fct = from_float64
+
+param_converter_array[11].itemsize = sizeof(np.npy_float128)
+param_converter_array[11].fct = from_float128
+
+param_converter_array[12].itemsize = sizeof(cl_mem)
+param_converter_array[12].fct = from_CLBuffer
+
+param_converter_array[13].itemsize = sizeof(cl_sampler)
+param_converter_array[13].fct = from_CLSampler
+
+
+
+
+############################################
+#
+#   Helpers Functions Section
+#
+############################################
+cdef inline void _init_buffer(CLBuffer instance, cl_mem mem, CLContext context, unsigned int offset):
+    instance._mem = mem
+    instance._context = context
+    instance._offset = offset
+
+
+cdef bytes _getPlatformInfo(cl_platform_id platform, cl_platform_info param_name):
+    cdef char value[256]
     cdef size_t size
-    CL_SAFE_CALL clGetPlatformInfo(platform, param_name, sizeof(char) * 100, <void *>value, &size)
-    s = value[:size -1]
+    cdef cl_int errcode
+    errcode = clGetPlatformInfo(platform, param_name, sizeof(char) * 256, <void *>value, &size)
+    if errcode < 0: raise translateError(errcode)
+    cdef bytes s = value[:size -1]
     return s
 
-cdef _getDeviceInfo_string(cl_device_id device, cl_device_info param_name):
-    cdef char value[100]
+cdef bytes _getDeviceInfo_string(cl_device_id device, cl_device_info param_name):
+    cdef char value[256]
     cdef size_t size
-    CL_SAFE_CALL clGetDeviceInfo(device, param_name, sizeof(char) * 100, <void *>value, &size)
-    s = value[:size -1]
+    CL_SAFE_CALL clGetDeviceInfo(device, param_name, sizeof(char) * 256, <void *>value, &size)
+    cdef bytes s = value[:size -1]
     return s
 
 cdef cl_uint _getDeviceInfo_uint(cl_device_id device, cl_device_info param_name) except *:
@@ -91,7 +332,13 @@ cdef cl_bool _getDeviceInfo_bool(cl_device_id device, cl_device_info param_name)
 cdef cl_ulong _getDeviceInfo_ulong(cl_device_id device, cl_device_info param_name) except *:
     cdef cl_ulong value
     cdef size_t size
-    CL_SAFE_CALL clGetDeviceInfo(device, param_name, sizeof(value), <void *>&value, &size)
+    CL_SAFE_CALL clGetDeviceInfo(device, param_name, sizeof(value), &value, &size)
+    return value
+
+cdef cl_ulong _getEventProfilingInfo(cl_event evt, cl_profiling_info param_name) except *:
+    cdef cl_ulong value
+    cdef size_t size
+    CL_SAFE_CALL clGetEventProfilingInfo(evt, param_name, sizeof(value), &value, &size)
     return value
 
 cdef unsigned int _getDeviceInfo_vect(cl_device_id device, cl_device_info param_name, void *vect, size_t in_size) except *:
@@ -103,8 +350,171 @@ cdef unsigned int _getDeviceInfo_size_t(cl_device_id device, cl_device_info para
     cdef size_t value
     cdef size_t size
     CL_SAFE_CALL clGetDeviceInfo(device, param_name, sizeof(value), &value, &size)
-    return size
+    return value
 
+cdef size_t _getImageInfo_size_t(cl_mem image, cl_image_info param_name) except *:
+    cdef size_t value
+    cdef size_t size
+    CL_SAFE_CALL clGetImageInfo(image, param_name, sizeof(size_t), &value, &size)
+    return value
+
+cdef cl_image_format _getImageInfo_format(cl_mem image, cl_image_info param_name) except *:
+    cdef cl_image_format value
+    cdef size_t size
+    CL_SAFE_CALL clGetImageInfo(image, param_name, sizeof(cl_image_format), &value, &size)
+    return value
+
+cdef size_t _getMemObjectInfo_size_t(cl_mem mem, cl_mem_info param_name) except *:
+    cdef size_t value
+    cdef size_t size
+    CL_SAFE_CALL clGetMemObjectInfo(mem, param_name, sizeof(size_t), &value, &size)
+    return value
+
+cdef cl_uint _getKernelInfo_uint(cl_kernel kernel, cl_kernel_info param_name) except *:
+    cdef cl_uint value
+    cdef size_t size
+    CL_SAFE_CALL clGetKernelInfo(kernel, param_name, sizeof(cl_uint), &value, &size)
+    return value
+
+cdef bytes _getKernelInfo_string(cl_kernel kernel, cl_kernel_info param_name):
+    cdef char string[256]
+    cdef size_t size
+    CL_SAFE_CALL clGetKernelInfo(kernel, param_name, 256, string, &size)
+    cdef bytes s = string[:size - 1]
+    return s
+
+cdef unsigned int _getSamplerInfo(cl_sampler sampler, cl_sampler_info info) except *:
+    cdef unsigned int value
+    cdef size_t size
+    CL_SAFE_CALL clGetSamplerInfo(sampler, info, sizeof(unsigned int), &value, &size)
+    return value
+
+cdef int _getEventInfo(cl_event event, cl_event_info info) except *:
+    cdef int value
+    cdef size_t size
+    CL_SAFE_CALL clGetEventInfo(event, info, sizeof(int), &value, &size)
+    return value
+
+cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
+    cdef cl_device_id devices[MAX_OPENCL_DEVICES_NUMBER]
+    cdef cl_uint num_devices
+    CL_SAFE_CALL clGetDeviceIDs(platform, dtype, MAX_OPENCL_DEVICES_NUMBER, devices, &num_devices)
+    cdef CLDevice instance
+    cdef int i
+    cdef list pydevices = []
+    for i in xrange(num_devices):
+        instance = CLDevice.__new__(CLDevice)
+        instance._device = devices[i]
+        pydevices.append(instance)
+    return pydevices
+
+cdef tuple _getWorkItemDimensions(cl_device_id device, unsigned int dim):
+    cdef size_t itemSizes[10]
+    _getDeviceInfo_vect(device, CL_DEVICE_MAX_WORK_ITEM_SIZES,
+                        itemSizes, 10 * sizeof(size_t))
+    cdef int i
+    return tuple([itemSizes[i] for i in xrange(dim)])
+
+
+cdef CLEvent _enqueueNDRange(cl_command_queue queue, cl_kernel kernel, tuple global_work_size, tuple local_work_size):
+    cdef size_t gwsize[3]
+    cdef size_t lwsize[3]
+    cdef cl_event evt
+    cdef int i
+    for i from 0 <= i < 3:
+        gwsize[i] = global_work_size[i]
+        lwsize[i] = local_work_size[i]
+    CL_SAFE_CALL clEnqueueNDRangeKernel(queue, kernel, 3, NULL, gwsize, lwsize, 0, NULL, &evt)
+
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef void _enqueueWaitForEvents(cl_command_queue queue, list events):
+    cdef cl_event lst[100]
+    cdef CLEvent evt
+    cdef int num_events = min(100, len(events))
+    cdef int i
+    for i from 0 <= i < num_events:
+        evt = events[i]
+        lst[i] = evt._event
+    CL_SAFE_CALL clEnqueueWaitForEvents(queue, num_events, lst)
+
+cdef void _enqueueBarrier(cl_command_queue queue):
+        CL_SAFE_CALL clEnqueueBarrier(queue)
+
+cdef CLEvent _enqueueMarker(cl_command_queue queue):
+        cdef cl_event event
+        cdef CLEvent instance
+        CL_SAFE_CALL clEnqueueMarker(queue, &event)
+        instance = CLEvent.__new__(CLEvent)
+        instance._event = event
+        return instance
+
+cdef CLEvent _enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer,
+                                 cl_bool blocking, size_t offset, size_t cb,
+                                 void *ptr):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueWriteBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef CLEvent _enqueueReadBuffer(cl_command_queue queue, cl_mem buffer,
+                                 cl_bool blocking, size_t offset, size_t cb,
+                                 void *ptr):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueReadBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef CLEvent _enqueueCopyBuffer(cl_command_queue queue, cl_mem src,cl_mem dst, size_t src_offset, size_t dst_offset, size_t size, cl_bool blocking):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueCopyBuffer(queue, src, dst, src_offset, dst_offset, size, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef CLEvent _enqueueMapBuffer(cl_command_queue queue, cl_mem src, cl_bool blocking, cl_map_flags flags, size_t offset, size_t size, void **dst):
+    cdef cl_event evt
+    CL_SAFE_CREATE dst[0] = clEnqueueMapBuffer(queue, src, blocking, flags, offset, size, 0, NULL, &evt, &errcode)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+cdef CLEvent _enqueueReadImage (cl_command_queue queue, cl_mem image, cl_bool blocking, size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueReadImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+
+cdef CLEvent _enqueueWriteImage (cl_command_queue queue, cl_mem image, cl_bool blocking, size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
+    cdef cl_event evt
+    CL_SAFE_CALL clEnqueueWriteImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &evt)
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event = evt
+    return instance
+
+
+
+
+
+
+############################################
+#
+#   Objects Sections
+#
+############################################
 cdef class CLObject:
     def __init__(self):
         raise AttributeError("Sorry pal, no instantiation from Python ...")
@@ -132,7 +542,7 @@ cdef class CLDevice(CLObject):
 
     property extensions:
         def __get__(self):
-            return _getDeviceInfo_string(self._device, CL_DEVICE_EXTENSIONS)
+            return _getDeviceInfo_string(self._device, CL_DEVICE_EXTENSIONS).split()
 
     property addressBits:
         def __get__(self):
@@ -148,155 +558,181 @@ cdef class CLDevice(CLObject):
 
     property maxWorkItemSizes:
         def __get__(self):
-            cdef size_t itemSizes[100]
-            cdef cl_uint dim = _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS)
-            _getDeviceInfo_vect(self._device, CL_DEVICE_MAX_WORK_ITEM_SIZES, itemSizes, 100 * sizeof(size_t))
-            cdef int i
-            cdef tuple t = (itemSizes[1],)
-            for i in xrange(1, dim):
-                t += (itemSizes[i],)
-            return t
+            cdef unsigned int dim = _getDeviceInfo_uint(self._device,
+                                        CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS)
+            return _getWorkItemDimensions(self._device, dim)
 
     property maxClockFrequency:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_CLOCK_FREQUENCY)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_CLOCK_FREQUENCY)
 
     property maxComputeUnit:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_COMPUTE_UNITS)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_COMPUTE_UNITS)
 
     property maxConstantArgs:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_CONSTANT_ARGS)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_CONSTANT_ARGS)
 
     property maxReadImageArgs:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_READ_IMAGE_ARGS)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_READ_IMAGE_ARGS)
 
     property maxSamplers:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_SAMPLERS)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_SAMPLERS)
 
     property minDataTypeAlignSize:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE)
 
     property maxWriteImageArgs:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MAX_WRITE_IMAGE_ARGS)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MAX_WRITE_IMAGE_ARGS)
 
     property memBaseAddrAlign:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_MEM_BASE_ADDR_ALIGN)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_MEM_BASE_ADDR_ALIGN)
 
     property imageSupport:
         def __get__(self):
-            return <bint>_getDeviceInfo_bool(self._device, CL_DEVICE_IMAGE_SUPPORT)
+            return <bint>_getDeviceInfo_bool(self._device,
+                                        CL_DEVICE_IMAGE_SUPPORT)
 
     property ECCSupport:
         def __get__(self):
-            return <bint>_getDeviceInfo_bool(self._device, CL_DEVICE_ERROR_CORRECTION_SUPPORT)
+            return <bint>_getDeviceInfo_bool(self._device,
+                                        CL_DEVICE_ERROR_CORRECTION_SUPPORT)
 
     property endianLittle:
         def __get__(self):
-            return <bint>_getDeviceInfo_bool(self._device, CL_DEVICE_ENDIAN_LITTLE)
+            return <bint>_getDeviceInfo_bool(self._device,
+                                        CL_DEVICE_ENDIAN_LITTLE)
 
     property compilerAvailable:
         def __get__(self):
-            return <bint>_getDeviceInfo_bool(self._device, CL_DEVICE_COMPILER_AVAILABLE)
+            return <bint>_getDeviceInfo_bool(self._device,
+                                        CL_DEVICE_COMPILER_AVAILABLE)
 
     property available:
         def __get__(self):
-            return <bint>_getDeviceInfo_bool(self._device, CL_DEVICE_AVAILABLE)
+            return <bint>_getDeviceInfo_bool(self._device,
+                                        CL_DEVICE_AVAILABLE)
 
     property globalMemSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_GLOBAL_MEM_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_GLOBAL_MEM_SIZE)
 
     property globalMemCacheSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)
 
     property globalMemCachelineSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)
 
     property localMemSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_LOCAL_MEM_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_LOCAL_MEM_SIZE)
 
     property maxConstantBufferSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)
 
     property maxMemAllocSize:
         def __get__(self):
-            return _getDeviceInfo_ulong(self._device, CL_DEVICE_MAX_MEM_ALLOC_SIZE)
+            return _getDeviceInfo_ulong(self._device,
+                                        CL_DEVICE_MAX_MEM_ALLOC_SIZE)
 
     property image2DMaxSize:
         def __get__(self):
-            cdef size_t width = _getDeviceInfo_size_t(self._device, CL_DEVICE_IMAGE2D_MAX_HEIGHT)
-            cdef size_t height = _getDeviceInfo_size_t(self._device, CL_DEVICE_IMAGE2D_MAX_WIDTH)
-
+            cdef size_t width = _getDeviceInfo_size_t(self._device,
+                                            CL_DEVICE_IMAGE2D_MAX_HEIGHT)
+            cdef size_t height = _getDeviceInfo_size_t(self._device,
+                                            CL_DEVICE_IMAGE2D_MAX_WIDTH)
             return (width, height)
 
     property image3DMaxSize:
         def __get__(self):
-            cdef size_t width = _getDeviceInfo_size_t(self._device, CL_DEVICE_IMAGE3D_MAX_HEIGHT)
-            cdef size_t height = _getDeviceInfo_size_t(self._device, CL_DEVICE_IMAGE3D_MAX_WIDTH)
-            cdef size_t depth = _getDeviceInfo_size_t(self._device, CL_DEVICE_IMAGE3D_MAX_DEPTH)
-
+            cdef size_t width = _getDeviceInfo_size_t(self._device,
+                                                CL_DEVICE_IMAGE3D_MAX_HEIGHT)
+            cdef size_t height = _getDeviceInfo_size_t(self._device,
+                                                CL_DEVICE_IMAGE3D_MAX_WIDTH)
+            cdef size_t depth = _getDeviceInfo_size_t(self._device,
+                                                CL_DEVICE_IMAGE3D_MAX_DEPTH)
             return (width, height, depth)
-
 
     property maxWorkGroupSize:
         def __get__(self):
-            return _getDeviceInfo_size_t(self._device, CL_DEVICE_MAX_WORK_GROUP_SIZE)
+            return _getDeviceInfo_size_t(self._device,
+                                         CL_DEVICE_MAX_WORK_GROUP_SIZE)
 
     property profilingTimerResolution:
         def __get__(self):
-            return _getDeviceInfo_size_t(self._device, CL_DEVICE_PROFILING_TIMER_RESOLUTION)
+            return _getDeviceInfo_size_t(self._device,
+                                         CL_DEVICE_PROFILING_TIMER_RESOLUTION)
 
     property preferredVectorWidthChar:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR)
 
     property preferredVectorWidthShort:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT)
 
     property preferredVectorWidthInt:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT)
 
     property preferredVectorWidthLong:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG)
 
     property preferredVectorWidthFloat:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT)
 
     property preferredVectorWidthDouble:
         def __get__(self):
-            return _getDeviceInfo_uint(self._device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE)
+            return _getDeviceInfo_uint(self._device,
+                                       CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE)
 
     property type:
         def __get__(self):
-            return device_type_translation_table[_getDeviceInfo_ulong(self._device, CL_DEVICE_TYPE)]
+            return _getDeviceInfo_ulong(self._device, CL_DEVICE_TYPE)
+
+    def __repr__(self):
+        return '<%s name="%s" type="%s" vendor="%s" driver="%s"/>' % \
+                    (self.__class__.__name__, self.name,
+                     device_type_translation_table[self.type],
+                     self.vendor,
+                     self.driverVersion)
+
 
 
 cdef class CLPlatform(CLObject):
     cdef cl_platform_id _platform
-    cdef cl_device_id _devices[MAX_OPENCL_DEVICES_NUMBER]
-    cdef cl_uint _num_devices
 
-    cpdef CLDevice getDevice(self, unsigned int device):
-        if device >= self._num_devices:
-            raise AttributeError("Invalid Device ID")
-        cdef CLDevice instance = CLDevice.__new__(CLDevice)
-        instance._device = self._devices[device]
-        return instance
+    cpdef list getDevices(self, cl_device_type dtype = 0xFFFFFFFF):
+        return _getDevices(self._platform, dtype)
 
     property version:
         def __get__(self):
@@ -312,72 +748,480 @@ cdef class CLPlatform(CLObject):
 
     property extensions:
         def __get__(self):
-            return _getPlatformInfo(self._platform, CL_PLATFORM_EXTENSIONS)
+            return _getPlatformInfo(self._platform, CL_PLATFORM_EXTENSIONS).split()
 
     property profile:
         def __get__(self):
             return _getPlatformInfo(self._platform, CL_PLATFORM_PROFILE)
 
+    def __repr__(self):
+        return '<%s name="%s" vendor="%s" version="%s"/>' % \
+                (self.__class__.__name__, self.name, self.vendor, self.version)
+
+
 
 cdef class CLBuffer(CLObject):
-    cdef cl_mem _mem
-
     CL_DEALLOC clReleaseMemObject(self._mem)
+
+    property size:
+        def __get__(self):
+            return _getMemObjectInfo_size_t(self._mem, CL_MEM_SIZE)
+
+    property address:
+        def __get__(self):
+            return <np.Py_intptr_t>self._mem
+
+    def __repr__(self):
+        return '<%s size="%d" offset="%d"/>' % \
+                (self.__class__.__name__, self.size, self._offset)
+
+
+
+cdef class CLImage(CLBuffer):
+    property slicePitch:
+        def __get__(self):
+            return _getImageInfo_size_t(self._mem, CL_IMAGE_SLICE_PITCH)
+
+    property elementSize:
+        def __get__(self):
+            return _getImageInfo_size_t(self._mem, CL_IMAGE_ELEMENT_SIZE)
+
+    property shape:
+        def __get__(self):
+            cdef size_t width = _getImageInfo_size_t(self._mem, CL_IMAGE_WIDTH)
+            cdef size_t height = _getImageInfo_size_t(self._mem, CL_IMAGE_HEIGHT)
+            cdef size_t depth = _getImageInfo_size_t(self._mem, CL_IMAGE_DEPTH)
+            return (width, height, depth)
+
+    property rowPitch:
+        def __get__(self):
+            return _getImageInfo_size_t(self._mem, CL_IMAGE_ROW_PITCH)
+
+    property format:
+        def __get__(self):
+            cdef cl_image_format format = _getImageInfo_format(self._mem, CL_IMAGE_FORMAT)
+            return (image_channel_order_translation_table[format.image_channel_order],
+                    image_channel_type_translation_table[format.image_channel_data_type])
+
+    cdef void _getSize(self, size_t size[3]):
+            size[0] = _getImageInfo_size_t(self._mem, CL_IMAGE_WIDTH)
+            size[1] = _getImageInfo_size_t(self._mem, CL_IMAGE_HEIGHT)
+            size[2] = _getImageInfo_size_t(self._mem, CL_IMAGE_DEPTH)
+
+    def __repr__(self):
+        cdef tuple format = self.format
+        return '<%s order="%s" type="%s" width="%d" height="%d" depth="%d"/>' % \
+                ((self.__class__.__name__, format[0], format[1]) + self.shape)
+
+
+
+cdef class CLKernel(CLObject):
+    CL_DEALLOC clReleaseKernel(self._kernel)
+    property name:
+        def __get__(self):
+            return _getKernelInfo_string(self._kernel, CL_KERNEL_FUNCTION_NAME)
+
+    property numArgs:
+        def __get__(self):
+            return <size_t>_getKernelInfo_uint(self._kernel, CL_KERNEL_NUM_ARGS)
+
+    property argsDescription:
+        def __get__(self):
+            return self._targs
+
+        def __set__(self, tuple value):
+            cdef int i
+            cdef unsigned int index
+            #cdef unsigned int num_args = len(value)
+            cdef unsigned int num_args = _getKernelInfo_uint(self._kernel, CL_KERNEL_NUM_ARGS)
+            if num_args != len(value):
+                raise AttributeError("Number of args differ. got %d, expect %d" %\
+                                    (len(value), num_args))
+            for i in xrange(num_args):
+                index = value[i]
+                if index > NUM_PARAM_CONVERTERS:
+                    raise AttributeError("Unknown Type")
+
+            self._targs = value
+
+    def setArgs(self, *args):
+        if len(args) != len(self._targs):
+            raise AttributeError("Error")
+        cdef int i
+        cdef unsigned int index
+        cdef param p
+        cdef errcode
+        for i in xrange(len(args)):
+            index = self._targs[i]
+            p = param_converter_array[index].fct(args[i])
+            CL_SAFE_CALL_NO_INIT clSetKernelArg(self._kernel, i,param_converter_array[index].itemsize, &p)
+
+    def __repr__(self):
+        return '<%s name="%s" numargs="%d"/>' % \
+                (self.__class__.__name__, self.name, self.numArgs)
+
+
+
+cdef class CLProgram(CLObject):
+    CL_DEALLOC clReleaseProgram(self._program)
+
+    cdef void _build(self, list options) except *:
+        CL_SAFE_CALL clBuildProgram(self._program, 0, NULL, NULL, NULL, NULL)
+
+    def build(self, list options = []):
+        self._build(options)
+
+    cpdef CLKernel createKernel(self, bytes string):
+        cdef cl_kernel kernel
+        CL_SAFE_CREATE kernel = clCreateKernel(self._program, string, &errcode)
+        cdef CLKernel instance = CLKernel.__new__(CLKernel)
+        return instance
+
+    cpdef list createKernelsInProgram(self):
+        cdef cl_kernel kernels[MAX_KERNELS_IN_PROGRAM]
+        cdef cl_int num_kernels
+        CL_SAFE_CALL clCreateKernelsInProgram(self._program, MAX_KERNELS_IN_PROGRAM, kernels, &num_kernels)
+        cdef list pykernels = []
+        cdef CLKernel instance
+        cdef int i
+        for i in xrange(num_kernels):
+            instance = CLKernel.__new__(CLKernel)
+            instance._kernel = kernels[i]
+            instance._program = self
+            pykernels.append(instance)
+        return pykernels
+
+    cpdef bytes getBuildLog(self, CLDevice device):
+        cdef char log[MAX_PROGRAM_BUILD_LOG]
+        cdef size_t size
+        CL_SAFE_CALL clGetProgramBuildInfo(self._program, (<CLDevice>self._context._devices[0])._device, CL_PROGRAM_BUILD_LOG, MAX_PROGRAM_BUILD_LOG, log, &size)
+        s = log[:size]
+        return s
+
+
+
+cdef class CLCommandQueue(CLObject):
+    CL_DEALLOC clReleaseCommandQueue(self._command_queue)
+    cpdef finish(self):
+        CL_SAFE_CALL clFinish(self._command_queue)
+
+    cpdef flush(self):
+        CL_SAFE_CALL clFlush(self._command_queue)
+
+    def enqueueNDRange(self, CLKernel kernel, tuple global_work_size = (1,1,1), tuple local_work_size = (1,1,1)):
+        return _enqueueNDRange(self._command_queue, kernel._kernel,
+                               global_work_size, local_work_size)
+
+
+
+    def enqueueWriteBuffer(self, CLBuffer mem, np.ndarray ary, bint blocking = True):
+        cdef unsigned int copy_size = ary.size * ary.dtype.itemsize
+        if (mem.size - mem._offset) != copy_size:
+            raise AttributeError("Size mismatch")
+        return _enqueueWriteBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
+
+        #cdef buffer buf = ary.data
+
+    def enqueueReadBuffer(self, np.ndarray ary, CLBuffer mem, bint blocking = True):
+        cdef unsigned int copy_size = mem.size - mem._offset
+        if copy_size  != ary.size * ary.dtype.itemsize:
+            raise AttributeError("Size mismatch")
+        return _enqueueReadBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
+
+    def enqueueCopyBuffer(self, CLBuffer src, CLBuffer dst, bint blocking = True):
+        cdef unsigned int copy_size = src.size - src._offset
+        if copy_size != dst.size - dst._offset:
+            raise AttributeError("Size mismatch")
+        return _enqueueCopyBuffer(self._command_queue, src._mem, dst._mem, src._offset, dst._offset, copy_size, blocking)
+
+    def enqueueBarrier(self):
+        _enqueueBarrier(self._command_queue)
+
+    def enqueueMarker(self):
+        return _enqueueMarker(self._command_queue)
+
+    def enqueueWaitForEvents(self, list events):
+        _enqueueWaitForEvents(self._command_queue, events)
+
+    def enqueueMapBuffer(self, CLBuffer src, cl_map_flags flags = CL_MAP_WRITE | CL_MAP_READ, bint blocking = True):
+        cdef size_t copy_size = src.size - src._offset
+        cdef void *host_ptr
+        cdef CLEvent event = _enqueueMapBuffer(self._command_queue, src._mem, blocking,flags, src._offset, copy_size, &host_ptr)
+        cdef CLMappedBuffer instance = CLMappedBuffer.__new__(CLMappedBuffer)
+        instance._address = host_ptr
+        instance._buffer = src
+        instance._command_queue = self
+        instance._mapped = True
+        return event, instance
+
+    def enqueueUnmapMemObject(self, CLMappedBuffer buffer):
+        cdef CLEvent event = _enqueueUnmapMemObject(self._command_queue, buffer._buffer._mem, buffer._address)
+        buffer._mapped = False
+        return event
+
+    def enqueueReadImage(self, np.ndarray ary, CLImage mem, bint blocking = True):
+        cdef size_t shape[3]
+        cdef size_t origin[3]
+        origin[0] = 0; origin[1] = 0; origin[2] = 0
+        cdef size_t pitch
+        cdef size_t slice
+        if ary.ndim == 2:
+            pitch = ary.strides[0]
+            shape[0] = ary.shape[0]
+            shape[1] = ary.shape[1]
+            shape[2] = 1
+            slice = 0
+        elif ary.ndim == 3:
+            pitch = ary.strides[1]
+            slice = ary.strides[0]
+            shape[0] = ary.shape[0]
+            shape[1] = ary.shape[1]
+            shape[2] = ary.shape[2]
+
+        else:
+            raise AttributeError("ary mus be 2D or 3D array")
+
+        return _enqueueReadImage(self._command_queue, mem._mem, blocking, origin, shape, pitch, slice, ary.data)
+
+
+    def enqueueWriteImage(self, CLImage mem, np.ndarray ary, bint blocking = True):
+        cdef size_t shape[3]
+        cdef size_t origin[3]
+        origin[0] = 0; origin[1] = 0; origin[2] = 0
+        cdef size_t pitch
+        cdef size_t slice
+        if ary.ndim == 2:
+            pitch = ary.strides[0]
+            shape[0] = ary.shape[0]
+            shape[1] = ary.shape[1]
+            shape[2] = 1
+            slice = 0
+        elif ary.ndim == 3:
+            pitch = ary.strides[1]
+            slice = ary.strides[0]
+            shape[0] = ary.shape[0]
+            shape[1] = ary.shape[1]
+            shape[2] = ary.shape[2]
+
+        else:
+            raise AttributeError("ary mus be 2D or 3D array")
+
+        return _enqueueWriteImage(self._command_queue, mem._mem, blocking, origin, shape, pitch, slice, ary.data)
+
 
 
 cdef class CLContext(CLObject):
-    cdef cl_context _context
-    cdef list _devices
-
     CL_DEALLOC clReleaseContext (self._context)
 
     property devices:
         def __get__(self):
             return self._devices
 
-    cpdef CLBuffer createBuffer(self, size_t size, size_t esize):
+    def createBuffer(self, size_t size, size_t esize, cl_mem_flags flags = CL_MEM_READ_WRITE):
+        return self._createBuffer(size, esize, flags)
+
+    cdef CLBuffer _createBuffer(self, size_t size, size_t esize, cl_mem_flags flags):
         cdef cl_int errcode
-        cdef cl_mem buffer = clCreateBuffer(self._context, CL_MEM_READ_WRITE, size * esize, NULL, &errcode)
-        cdef CLBuffer instance = CLBuffer.__new__(CLBuffer)
-        instance._mem = buffer
+        cdef CLBuffer instance
+        cdef cl_mem buffer
+        buffer = clCreateBuffer(self._context, CL_MEM_READ_WRITE, size * esize, NULL, &errcode)
+        if errcode < 0: raise translateError(errcode)
+        instance = CLBuffer.__new__(CLBuffer)
+        _init_buffer(instance, buffer, self, 0)
         return instance
 
-cdef cl_platform_id platforms[MAX_OPENCL_PLATFORM_NUMBER]
-cdef unsigned int num_platforms
+    cpdef CLImage createImage2D(self, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
+        cdef cl_image_format format
+        cdef cl_mem image
+        cdef CLImage instance
+        cdef cl_int errcode
+
+        format.image_channel_order = order
+        format.image_channel_data_type = itype
+        image = clCreateImage2D(self._context, CL_MEM_READ_WRITE, &format, width, height, 0, NULL, &errcode)
+        if errcode < 0: raise translateError(errcode)
+
+        instance = CLImage.__new__(CLImage)
+        _init_buffer(instance, image, self, 0)
+        return instance
+
+    cpdef CLImage createImage3D(self, size_t width, size_t height, size_t depth):
+        cdef cl_image_format format
+        cdef cl_mem image
+        format.image_channel_order = CL_INTENSITY
+        format.image_channel_data_type = CL_FLOAT
+        CL_SAFE_CREATE image = clCreateImage3D(self._context, CL_MEM_READ_WRITE, &format, width, height, depth, 0, 0, NULL, &errcode)
+        cdef CLImage instance = CLImage.__new__(CLImage)
+        _init_buffer(instance, image, self, 0)
+        return instance
+
+    cpdef CLProgram createProgramWithSource(self, bytes pystring):
+        cdef cl_program program
+        cdef const_char_ptr strings[1]
+        strings[0] = pystring
+        cdef size_t sizes = len(pystring)
+        CL_SAFE_CREATE program = clCreateProgramWithSource(self._context, 1, strings, &sizes, &errcode)
+        cdef CLProgram instance = CLProgram.__new__(CLProgram)
+        instance._program = program
+        instance._context = self
+        return instance
+
+    def createCommandQueue(self, CLDevice device, cl_command_queue_properties flags = <cl_command_queue_properties>0):
+        return self._createCommandQueue(device, flags)
+
+    cdef CLCommandQueue _createCommandQueue(self, CLDevice device, cl_command_queue_properties flags):
+        cdef cl_command_queue command_queue
+        CL_SAFE_CREATE command_queue = clCreateCommandQueue(self._context, device._device, flags, &errcode)
+        cdef CLCommandQueue instance = CLCommandQueue.__new__(CLCommandQueue)
+        instance._context = self
+        instance._command_queue = command_queue
+        return instance
+
+    cpdef CLSampler createSampler(self,  cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
+        cdef cl_sampler sampler
+        CL_SAFE_CREATE sampler = clCreateSampler(self._context, normalized, amode, fmode, &errcode)
+        cdef CLSampler instance = CLSampler.__new__(CLSampler)
+        instance._context = self
+        instance._sampler = sampler
+        return instance
+
+
+
+cdef class CLEvent(CLObject):
+    CL_DEALLOC clReleaseEvent(self._event)
+
+    property type:
+        def __get__(self):
+            return _getEventInfo(self._event,
+                                 CL_EVENT_COMMAND_TYPE)
+
+    property status:
+        def __get__(self):
+            return _getEventInfo(self._event,
+                                 CL_EVENT_COMMAND_EXECUTION_STATUS)
+
+    property profilingQueued:
+        def __get__(self):
+            return _getEventProfilingInfo(self._event,
+                                 CL_PROFILING_COMMAND_QUEUED)
+
+    property profilingSubmit:
+        def __get__(self):
+            return _getEventProfilingInfo(self._event,
+                                 CL_PROFILING_COMMAND_SUBMIT)
+
+    property profilingStart:
+        def __get__(self):
+            return _getEventProfilingInfo(self._event,
+                                 CL_PROFILING_COMMAND_START)
+
+    property profilingEnd:
+        def __get__(self):
+            return _getEventProfilingInfo(self._event,
+                                 CL_PROFILING_COMMAND_END)
+
+    def __repr__(self):
+        return '<%s type="%s" status="%s"/>' % \
+            (self.__class__.__name__, \
+             event_type_translation_table[self.type],\
+             event_status_translation_table[self.status])
+
+
+
+cdef class CLSampler(CLObject):
+    CL_DEALLOC clReleaseSampler(self._sampler)
+
+    property normalized:
+        def __get__(self):
+            return _getSamplerInfo(self._sampler,
+                                   CL_SAMPLER_NORMALIZED_COORDS) == 1
+
+    property filterMode:
+        def __get__(self):
+            return _getSamplerInfo(self._sampler, CL_SAMPLER_FILTER_MODE)
+
+    property addressingMode:
+        def __get__(self):
+            return _getSamplerInfo(self._sampler, CL_SAMPLER_ADDRESSING_MODE)
+
+    def __repr__(self):
+        return '<%s normalized="%s" filterMode="%s" addressingMode="%s"/>' % \
+                    (self.__class__.__name__, \
+                     self.normalized, \
+                     filter_mode_translation_table[self.filterMode], \
+                     addressing_mode_translation_table[self.addressingMode])
+
+
+
+cdef class CLMappedBuffer(CLObject):
+    property address:
+        def __get__(self):
+            return <np.Py_intptr_t> self._address
+    property __array_interface__:
+        def __get__(self):
+            return { "shape" : (self._buffer.size,),
+                     "typestr" : "|i1",
+                     "data" : (<np.Py_intptr_t> self._address, False),
+                     "version" : 3}
+    def __repr__(self):
+        return '<%s address="%d" size="%s"/>' % \
+                (self.__class__.__name__, <np.Py_intptr_t>self._address, self._buffer.size)
+
+    def __dealloc__(self):
+        if self._mapped:
+            self._command_queue.enqueueUnmapMemObject(self)
+
+
 
 ############################################
 #
-# OPENCL API
+#   API Section
 #
 ############################################
 
-cpdef CLPlatform getPlatform(unsigned int pid):
-    CL_SAFE_CALL clGetPlatformIDs(MAX_OPENCL_PLATFORM_NUMBER, platforms, &num_platforms)
-    if pid >= num_platforms:
-        raise AttributeError("Invalid platform ID")
+cpdef list getPlatforms():
+    cdef list pyplatforms = []
+    cdef cl_platform_id platforms[MAX_OPENCL_PLATFORM_NUMBER]
+    cdef unsigned int num_platforms
+    cdef CLPlatform instance
+    cdef int i
+    cdef cl_int errcode
+    errcode = clGetPlatformIDs(MAX_OPENCL_PLATFORM_NUMBER, platforms,
+                               &num_platforms)
+    if errcode < 0: raise translateError(errcode)
 
-    cdef CLPlatform instance = CLPlatform.__new__(CLPlatform)
-    instance._platform = platforms[pid]
-
-    CL_SAFE_CALL_NO_INIT clGetDeviceIDs(instance._platform, CL_DEVICE_TYPE_ALL, MAX_OPENCL_DEVICES_NUMBER, instance._devices, &instance._num_devices)
-    return instance
+    for i in xrange(num_platforms):
+        instance = CLPlatform.__new__(CLPlatform)
+        instance._platform = platforms[i]
+        pyplatforms.append(instance)
+    return pyplatforms
 
 
 cpdef CLContext createContext(list devices):
+    cdef long num_devices = len(devices)
     cdef cl_device_id clDevices[100]
-    cdef CLDevice device
+    cdef cl_context context
     cdef cl_int errcode
-    for i in xrange(len(devices)):
-        device = devices[i]
-        clDevices[i] = device._device
-    cdef cl_context context = clCreateContext(NULL, len(devices), clDevices, NULL, NULL, &errcode)
-    if errcode < 0:
-        raise CLError(error_translation_table[errcode])
+    cdef CLContext instance
 
-    cdef CLContext instance = CLContext.__new__(CLContext)
+    for i from 0 <= i < min(num_devices, 100):
+        clDevices[i] = (<CLDevice>devices[i])._device
+    context = clCreateContext(NULL, num_devices, clDevices,
+                              NULL, NULL, &errcode)
+    if errcode < 0: raise translateError(errcode)
+    instance = CLContext.__new__(CLContext)
     instance._context = context
     instance._devices = devices
     return instance
 
 
+cpdef waitForEvents(list events):
+    cdef int num_events = len(events)
+    cdef cl_event lst[100]
+    cdef CLEvent evt
+    cdef cl_int errcode
 
+    for i from 0 <= i < min(num_events, 100):
+        lst[i] = (<CLEvent>events[i])._event
+    errcode = clWaitForEvents(num_events, lst)
+    if errcode < 0: raise translateError(errcode)
