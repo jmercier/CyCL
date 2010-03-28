@@ -125,8 +125,7 @@ sampler_properties = { 'cl_uint'    : [('normalized', 'CL_SAMPLER_NORMALIZED_COO
                                        ('filterMode', 'CL_SAMPLER_FILTER_MODE'),
                                        ('addressingMode', 'CL_SAMPLER_ADDRESSING_MODE')]}
 
-%>
-
+%> \
 ${copyright()}
 cimport opencl
 cimport numpy as np
@@ -144,6 +143,8 @@ cdef dict error_translation_table = {
 
 ${makesection("Args Translation")}
 cdef union param:
+    cl_mem          mem_value
+    cl_sampler      sampler_value
 %for t in param_types:
     np.npy_${t}         ${t}_value
 %endfor
@@ -154,7 +155,7 @@ cdef struct ptype:
     size_t itemsize
     param_converter_fct fct
 
-cdef ptype param_converter_array[${len(param_types)}]
+cdef ptype param_converter_array[${len(param_types)} + 2]
 
 %for i, t in enumerate(param_types):
 cdef param from_${t}(object val) except *:
@@ -165,6 +166,21 @@ param_converter_array[${i}].itemsize = sizeof(np.npy_${t})
 param_converter_array[${i}].fct = from_${t}
 
 %endfor
+cdef param from_CLBuffer(object val) except *:
+    cdef CLBuffer buf_val = val
+    cdef param p
+    p.mem_value = buf_val._mem
+    return p
+param_converter_array[${len(param_types)}].itemsize = sizeof(cl_mem)
+param_converter_array[${len(param_types)}].fct = from_CLBuffer
+
+cdef param from_CLSampler(object val) except *:
+    cdef CLSampler buf_val = val
+    cdef param p
+    p.sampler_value = buf_val._sampler
+    return p
+param_converter_array[${len(param_types) + 1}].itemsize = sizeof(cl_sampler)
+param_converter_array[${len(param_types) + 1}].fct = from_CLSampler
 
 ${makesection("Helper functions")}
 
@@ -272,11 +288,11 @@ cdef CLKernel _createKernel(CLProgram program, bytes string):
 ${init_instance(['program', 'kernel'], '    ')}
     return instance
 
-cdef bytes getBuildLog(CLProgram program, CLDevice device):
+cdef bytes _getBuildLog(CLProgram program, CLDevice device):
     cdef char log[10000]
     cdef size_t size
     cdef cl_int errcode
-    errcode = clGetProgramBuildInfo(program._program, device._device, CL_PROGRAM_BUILD_LOG, MAX_PROGRAM_BUILD_LOG, log, &size)
+    errcode = clGetProgramBuildInfo(program._program, device._device, CL_PROGRAM_BUILD_LOG, 10000, log, &size)
     if errcode < 0: raise CLError(error_translation_table[errcode])
     s = log[:size]
     return s
@@ -285,7 +301,7 @@ cdef list _createKernelsInProgram(CLProgram program):
     cdef cl_kernel kernels[20]
     cdef cl_int num_kernels
     cdef cl_int errcode
-    errcode = clCreateKernelsInProgram(program._program, MAX_KERNELS_IN_PROGRAM, kernels, &num_kernels)
+    errcode = clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)
     if errcode < 0: raise CLError(error_translation_table[errcode])
     cdef list pykernels = []
     cdef CLKernel instance
@@ -307,6 +323,31 @@ cdef void _flush(CLCommandQueue queue) except *:
     errcode = clFlush(queue._command_queue)
     if errcode < 0: raise CLError(error_translation_table[errcode])
 
+cdef void _setArgs(CLKernel kernel, tuple args) except *:
+    if len(args) != len(kernel._targs):
+        raise AttributeError("Error")
+    cdef int i
+    cdef unsigned int index
+    cdef param p
+    cdef errcode
+    for i in xrange(len(args)):
+        index = kernel._targs[i]
+        p = param_converter_array[index].fct(args[i])
+        errcode = clSetKernelArg(kernel._kernel, i,param_converter_array[index].itemsize, &p)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+
+cdef void _setParameters(CLKernel kernel, tuple parameters) except *:
+    cdef int i
+    cdef unsigned int index
+    #cdef unsigned int num_args = len(value)
+    cdef cl_uint num_args = _getKernelInfo_cl_uint(kernel._kernel, CL_KERNEL_NUM_ARGS)
+    if num_args != len(parameters):
+        raise AttributeError("Number of args differ. got %d, expect %d" %\
+                            (len(parameters), num_args))
+    for i in xrange(num_args):
+        index = parameters[i]
+        if index >= ${len(param_types) + 2}:
+            raise AttributeError("Unknown Type")
 
 cdef void _build(CLProgram program, list options) except *:
     cdef cl_int errcode = clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)
@@ -331,6 +372,10 @@ ${make_dealloc("clReleaseProgram(self._program)")}
 
     def getBuildLog(self, CLDevice device):
         return _getBuildLog(self, device)
+
+    def build(self, list options = []):
+        _build(self, options)
+        return self
 
 cdef class CLDevice(CLObject):
 ${properties_getter("Device", "_device", device_properties)}
@@ -360,8 +405,18 @@ ${properties_repr(['shape'])}
 
 cdef class CLKernel(CLObject):
 ${properties_getter("Kernel", "_kernel", kernel_properties)}
-${properties_repr(['name', 'numargs'])}
+${properties_repr(['name', 'numArgs'])}
 ${make_dealloc("clReleaseKernel(self._kernel)")}
+    property parameters:
+        def __get__(self):
+            return self._targs
+
+        def __set__(self, tuple value):
+            _setParameters(self, value)
+            self._targs = value
+
+    def setArgs(self, *args):
+        _setArgs(self, args)
 
 
 cdef class CLEvent(CLObject):
