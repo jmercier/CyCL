@@ -257,6 +257,7 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
     cdef cl_int errcode = ${fct_name}(obj, param_name, 256 * sizeof(char), result, &size)
     if errcode < 0: raise CLError(error_translation_table[errcode])
     cdef bytes s = result[:size -1]
+    return s
     %endif
 
     %endfor
