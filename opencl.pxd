@@ -23,75 +23,9 @@
 #
 #
 from libopencl cimport *
-cimport numpy as np
 
 cdef extern from "pyerrors.h":
     ctypedef class __builtin__.Exception [object PyBaseExceptionObject]: pass
-
-
-cdef union param:
-        np.npy_byte         byte_value              #1
-        np.npy_short        short_value             #3
-        np.npy_int          int_value               #7
-        np.npy_long         long_value
-        np.npy_longlong     longlong_value
-
-        np.npy_ubyte        ubyte_value             #2
-        np.npy_ushort       ushort_value            #4
-        np.npy_ulong        ulong_value
-        np.npy_ulonglong    ulonglong_value
-
-        np.npy_float        float_value             #12
-        np.npy_double       double_value            #12
-
-        np.npy_int8         int8_value              #1
-        np.npy_int16        int16_value             #4
-        np.npy_int32        int32_value             #5
-        np.npy_int64        int64_value             #7
-
-        np.npy_uint8        uint8_value             #2
-        np.npy_uint16       uint16_value            #4
-        np.npy_uint32       uint32_value            #6
-        np.npy_uint64       uint64_value            #8
-
-        np.npy_float32      float32_value           #11
-        np.npy_float64      float64_value           #12
-        np.npy_float128     float128_value          #13
-
-        np.npy_complex64    complex64_value         #14
-        np.npy_complex128   complex128_value        #15
-        np.npy_complex256   complex256_value        #16
-
-        np.npy_intp         intp_value
-        cl_sampler          sampler_value
-        cl_mem              mem_value
-
-
-ctypedef param (*param_converter_fct)(object) except *
-
-cdef struct ptype:
-    size_t itemsize
-    param_converter_fct fct
-
-
-DEF BYTE_ID          = 0
-DEF UBYTE_ID         = 1
-DEF SHORT_ID         = 2
-DEF USHORT_ID        = 3
-DEF INT32_ID         = 4
-DEF UINT32_ID        = 5
-DEF INT64_ID         = 6
-DEF UINT64_ID        = 7
-
-DEF INTP_ID          = 8
-
-DEF FLOAT32_ID       = 9
-DEF FLOAT64_ID       = 10
-DEF FLOAT128_ID      = 11
-
-DEF BUFFER_ID        = 12
-DEF IMAGE_ID         = 12
-DEF SAMPLER_ID       = 13
 
 
 cdef class CLObject
@@ -108,10 +42,7 @@ cdef class CLCommandQueue
 cdef class CLError(Exception): pass
 #def CLError translateError(cl_int error)
 
-
 cdef class CLObject: pass
-
-
 
 
 cdef class CLDevice(CLObject):
