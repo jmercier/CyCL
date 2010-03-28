@@ -106,7 +106,7 @@ cdef class CLEvent
 cdef class CLCommandQueue
 
 cdef class CLError(Exception): pass
-cdef CLError translateError(cl_int error)
+#def CLError translateError(cl_int error)
 
 
 cdef class CLObject: pass
@@ -132,12 +132,13 @@ cdef class CLMappedBuffer(CLObject):
 cdef class CLCommandQueue(CLObject):
     cdef cl_command_queue _command_queue
     cdef CLContext _context
-    cpdef finish(self)
-    cpdef flush(self)
+    #cpdef finish(self)
+    #cpdef flush(self)
 
 
 cdef class CLImage(CLBuffer):
-    cdef void _getSize(self, size_t size[3])
+    pass
+    #cdef void _getSize(self, size_t size[3])
 
 cdef class CLKernel(CLObject):
     cdef cl_kernel _kernel
@@ -148,20 +149,20 @@ cdef class CLProgram(CLObject):
     cdef cl_program _program
     cdef CLContext _context
 
-    cdef void _build(self, list options)
-    cpdef CLKernel createKernel(self, bytes)
-    cpdef list createKernelsInProgram(self)
-    cpdef bytes getBuildLog(self, CLDevice)
+    #cdef void _build(self, list options)
+    #cpdef CLKernel createKernel(self, bytes)
+    #cpdef list createKernelsInProgram(self)
+    #cpdef bytes getBuildLog(self, CLDevice)
 
 cdef class CLContext(CLObject):
     cdef cl_context _context
     cdef list _devices
-    cdef CLBuffer _createBuffer(self, size_t, size_t, cl_mem_flags)
-    cpdef CLImage createImage2D(self, size_t, size_t,cl_channel_order, cl_channel_type)
-    cpdef CLImage createImage3D(self, size_t, size_t, size_t)
-    cpdef CLProgram createProgramWithSource(self, bytes)
-    cdef CLCommandQueue _createCommandQueue(self, CLDevice, cl_command_queue_properties)
-    cpdef CLSampler createSampler(self, cl_bool, cl_addressing_mode, cl_filter_mode)
+    #cdef CLBuffer _createBuffer(self, size_t, size_t, cl_mem_flags)
+    #cpdef CLImage createImage2D(self, size_t, size_t,cl_channel_order, cl_channel_type)
+    #cpdef CLImage createImage3D(self, size_t, size_t, size_t)
+    #cpdef CLProgram createProgramWithSource(self, bytes)
+    #cdef CLCommandQueue _createCommandQueue(self, CLDevice, cl_command_queue_properties)
+    #cpdef CLSampler createSampler(self, cl_bool, cl_addressing_mode, cl_filter_mode)
 
 
 cdef class CLEvent(CLObject):
@@ -172,4 +173,6 @@ cdef class CLSampler(CLObject):
     cdef cl_sampler _sampler
     cdef CLContext _context
 
+cdef class CLPlatform(CLObject):
+    cdef cl_platform_id _platform
 
