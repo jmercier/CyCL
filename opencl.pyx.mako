@@ -7,7 +7,8 @@ param_types = ['byte', 'ubyte',
                'intp',
                'float32',
                'float64',
-               'float128'];
+               #'float128' # UNTIL WARNING IN GCC
+              ];
 
 
 error_types = ['CL_SUCCESS',
@@ -137,9 +138,7 @@ cdef dict error_translation_table = {
 %for e in error_types:
         ${e} : "${e}",
 %endfor
-
 }
-
 
 ${makesection("Args Translation")}
 cdef union param:
@@ -197,9 +196,7 @@ DEF MAX_DEVICES_NUMBER = 10
 cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
     cdef cl_device_id devices[MAX_DEVICES_NUMBER]
     cdef cl_uint num_devices
-    cdef cl_int errcode
-    errcode = clGetDeviceIDs(platform, dtype, MAX_DEVICES_NUMBER, devices, &num_devices)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+${make_safe_call('clGetDeviceIDs(platform, dtype, MAX_DEVICES_NUMBER, devices, &num_devices)', '    ', init = 'CLDevice')}
     cdef CLDevice instance
     cdef int i
     cdef list pydevices = []
@@ -210,99 +207,52 @@ cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
     return pydevices
 
 cdef CLImage _createImage2D(CLContext context, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
-    cdef cl_image_format format
-    cdef cl_mem mem
-    cdef CLImage instance
-    cdef cl_int errcode
+    cdef cl_image_format format = [order, itype]
     cdef cl_uint offset = 0
-
-    format.image_channel_order = order
-    format.image_channel_data_type = itype
-    mem = clCreateImage2D(context._context, CL_MEM_READ_WRITE, &format, width, height, 0, NULL, &errcode)
-    if errcode < 0: raise translateError(errcode)
-
-    instance = CLImage.__new__(CLImage)\
-${init_instance(['mem', 'context', 'offset'], '    ')}
-    return instance
+${make_safe_create('cdef cl_mem mem = clCreateImage2D(context._context, CL_MEM_READ_WRITE, &format, width, height, 0, NULL, &errcode)', '    ')}
+${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLImage')}
 
 cdef CLImage _createImage3D(CLContext context, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype):
-    cdef cl_int errcode
-    cdef cl_image_format format
+    cdef cl_image_format format = [order, itype]
     cdef cl_uint offset = 0
-    cdef cl_mem mem
-
-    format.image_channel_order = order
-    format.image_channel_data_type = itype
-    mem = clCreateImage3D(context._context, CL_MEM_READ_WRITE, &format, width, height, depth, 0, 0, NULL, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLImage instance = CLImage.__new__(CLImage) \
-${init_instance(['mem', 'context', 'offset'], '    ')}
-    return instance
+${make_safe_create('cdef cl_mem mem = clCreateImage3D(context._context, CL_MEM_READ_WRITE, &format, width, height, depth, 0, 0, NULL, &errcode)', '    ')}
+${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLImage')}
 
 cdef CLBuffer _createBuffer(CLContext context, size_t size, cl_mem_flags flags):
-    cdef cl_int errcode
-    cdef cl_mem mem
     cdef cl_uint offset = 0
-    mem = clCreateBuffer(context._context, flags, size, NULL, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLBuffer instance = CLBuffer.__new__(CLBuffer) \
-${init_instance(['mem', 'context', 'offset'], '    ')}
-    return instance
+${make_safe_create('cdef cl_mem mem = clCreateBuffer(context._context, flags, size, NULL, &errcode)', '    ')}
+${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLImage')}
 
 cdef CLCommandQueue _createCommandQueue(CLContext context, CLDevice device, cl_command_queue_properties flags):
-    cdef cl_command_queue command_queue
-    cdef cl_int errcode
-    command_queue = clCreateCommandQueue(context._context, device._device, flags, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLCommandQueue instance = CLCommandQueue.__new__(CLCommandQueue)
-${init_instance(['context', 'command_queue'], '    ')}
-    return instance
+${make_safe_create('cdef cl_command_queue command_queue = clCreateCommandQueue(context._context, device._device, flags, &errcode)', '    ')}
+${init_instance(['context', 'command_queue'], '    ', return_instance = True, init = 'CLCommandQueue')}
 
 cdef CLSampler _createSampler(CLContext context, cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
-    cdef cl_sampler sampler
-    cdef cl_int errcode
-    sampler = clCreateSampler(context._context, normalized, amode, fmode, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLSampler instance = CLSampler.__new__(CLSampler)
-${init_instance(['context', 'sampler'], '    ')}
-    return instance
+${make_safe_create('cdef cl_sampler sampler = clCreateSampler(context._context, normalized, amode, fmode, &errcode)', '    ')}
+${init_instance(['context', 'sampler'], '    ', return_instance = True, init = 'CLSampler')}
 
 cdef CLProgram _createProgramWithSource(CLContext context, bytes pystring):
-    cdef cl_program program
     cdef const_char_ptr strings[1]
-    cdef cl_int errcode
     strings[0] = pystring
     cdef size_t sizes = len(pystring)
-    program = clCreateProgramWithSource(context._context, 1, strings, &sizes, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLProgram instance = CLProgram.__new__(CLProgram)
-${init_instance(['context', 'program'], '    ')}
-    return instance
+${make_safe_create('cdef cl_program program = clCreateProgramWithSource(context._context, 1, strings, &sizes, &errcode)', '    ')}
+${init_instance(['context', 'program'], '    ', return_instance = True, init = 'CLProgram')}
 
 cdef CLKernel _createKernel(CLProgram program, bytes string):
-    cdef cl_kernel kernel
-    cdef cl_int errcode
-    kernel = clCreateKernel(program._program, string, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLKernel instance = CLKernel.__new__(CLKernel)
-${init_instance(['program', 'kernel'], '    ')}
-    return instance
+${make_safe_create('cdef cl_kernel kernel = clCreateKernel(program._program, string, &errcode)', '    ')}
+${init_instance(['program', 'kernel'], '    ', return_instance = True, init = 'CLKernel')}
 
 cdef bytes _getBuildLog(CLProgram program, CLDevice device):
     cdef char log[10000]
     cdef size_t size
-    cdef cl_int errcode
-    errcode = clGetProgramBuildInfo(program._program, device._device, CL_PROGRAM_BUILD_LOG, 10000, log, &size)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+${make_safe_call('clGetProgramBuildInfo(program._program, device._device, CL_PROGRAM_BUILD_LOG, 10000, log, &size)', '    ')}
     s = log[:size]
     return s
 
 cdef list _createKernelsInProgram(CLProgram program):
     cdef cl_kernel kernels[20]
     cdef cl_int num_kernels
-    cdef cl_int errcode
-    errcode = clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+${make_safe_call('clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)', '    ')}
     cdef list pykernels = []
     cdef CLKernel instance
     cdef int i
@@ -314,14 +264,10 @@ cdef list _createKernelsInProgram(CLProgram program):
     return pykernels
 
 cdef void _finish(CLCommandQueue queue) except *:
-    cdef cl_int errcode
-    errcode = clFinish(queue._command_queue)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+${make_safe_call('clFinish(queue._command_queue)', '    ')}
 
 cdef void _flush(CLCommandQueue queue) except *:
-    cdef cl_int errcode
-    errcode = clFlush(queue._command_queue)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+${make_safe_call('clFlush(queue._command_queue)', '    ')}
 
 cdef void _setArgs(CLKernel kernel, tuple args) except *:
     if len(args) != len(kernel._targs):
@@ -349,29 +295,98 @@ cdef void _setParameters(CLKernel kernel, tuple parameters) except *:
         if index >= ${len(param_types) + 2}:
             raise AttributeError("Unknown Type")
 
-cdef void _build(CLProgram program, list options) except *:
-    cdef cl_int errcode = clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
+cdef void _enqueueBarrier(cl_command_queue queue) except *:
+${make_safe_call('clEnqueueBarrier(queue)', '    ')}
+
+cdef CLEvent _enqueueMarker(cl_command_queue queue):
+    cdef cl_event event
+${make_safe_call('clEnqueueMarker(queue, &event)', '    ')}
+${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
+
+cdef void _enqueueWaitForEvents(cl_command_queue queue, list events) except *:
+    cdef cl_event lst[100]
+    cdef CLEvent evt
+    cdef int i, num_events = min(100, len(events))
+    for i from 0 <= i < num_events:
+        evt = events[i]
+        lst[i] = evt._event
+${make_safe_call('clEnqueueWaitForEvents(queue, num_events, lst)', '    ')}
+
+cdef CLEvent _enqueueNDRange(cl_command_queue queue, cl_kernel kernel, size_t gws[3], size_t lws[3]):
+    cdef cl_event event
+${make_safe_call('clEnqueueNDRangeKernel(queue, kernel, 3, NULL, gws, lws, 0, NULL, &event)', '    ')}
+${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer,
+                                 cl_bool blocking, size_t offset, size_t cb,
+                                 void *ptr):
+    cdef cl_event event
+${make_safe_call('clEnqueueWriteBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueReadBuffer(cl_command_queue queue, cl_mem buffer,
+                                 cl_bool blocking, size_t offset, size_t cb,
+                                 void *ptr):
+    cdef cl_event event
+${make_safe_call('clEnqueueReadBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueCopyBuffer(cl_command_queue queue, cl_mem src,cl_mem dst,
+                                size_t src_offset, size_t dst_offset, size_t size, cl_bool blocking):
+    cdef cl_event event
+${make_safe_call('clEnqueueCopyBuffer(queue, src, dst, src_offset, dst_offset, size, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueReadImage (cl_command_queue queue, cl_mem image, cl_bool blocking,
+                                size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
+    cdef cl_event event
+${make_safe_call('clEnqueueReadImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueWriteImage (cl_command_queue queue, cl_mem image, cl_bool blocking,
+                                 size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
+    cdef cl_event event
+${make_safe_call('clEnqueueWriteImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueMapBuffer(cl_command_queue queue, cl_mem src, cl_bool blocking,
+                               cl_map_flags flags, size_t offset, size_t size, void **dst):
+    cdef cl_event event
+${make_safe_create('dst[0] = clEnqueueMapBuffer(queue, src, blocking, flags, offset, size, 0, NULL, &event, &errcode)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
+    cdef cl_event event
+${make_safe_create('clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &event)', '    ')}
+${init_instance('event', '    ', return_instance = True, init = "CLEvent")}
+
+
+
+
+cdef void _build(CLProgram program, list options):
+${make_safe_call('clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)', '    ')}
 
 ${makesection("Classes")}
 cdef class CLCommandQueue(CLObject):
 ${make_dealloc("clReleaseCommandQueue(self._command_queue)")}
-    def flush(self):
-        _flush(self)
+    def flush(self): _flush(self)
 
-    def finish(self):
-        _finish(self)
+    def finish(self): _finish(self)
+
+    def enqueueWriteBuffer(self, CLBuffer mem, np.ndarray ary, bint blocking = True):
+        cdef unsigned int copy_size = ary.size * ary.dtype.itemsize
+        if (mem.size - mem_offset) != copy.size:
+            raise AttributeError("Size Mismatch")
+        return _enqueueWriteBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
+
 
 cdef class CLProgram(CLObject):
 ${make_dealloc("clReleaseProgram(self._program)")}
-    def createKernelsInProgram(self):
-        return _createKernelsInProgram(self)
+    def createKernelsInProgram(self): return _createKernelsInProgram(self)
 
-    def createKernel(self, bytes string):
-        return _createKernel(self, string)
+    def createKernel(self, bytes string): return _createKernel(self, string)
 
-    def getBuildLog(self, CLDevice device):
-        return _getBuildLog(self, device)
+    def getBuildLog(self, CLDevice device): return _getBuildLog(self, device)
 
     def build(self, list options = []):
         _build(self, options)
@@ -383,19 +398,18 @@ ${properties_repr(['name', 'type', 'vendor', 'driverVersion'])}
 
 cdef class CLPlatform(CLObject):
 ${properties_getter("Platform", "_platform", platform_properties)}
-    def getDevices(self, cl_device_type dtype = 0xFFFFFFFF):
-        return _getDevices(self._platform, dtype)
-    def build(self, list options = []):
-        _build(self, options)
 ${properties_repr(['name', 'vendor', 'version'])}
+    def getDevices(self, cl_device_type dtype = 0xFFFFFFFF): return _getDevices(self._platform, dtype)
+
+    def build(self, list options = []): _build(self, options)
 
 cdef class CLBuffer(CLObject):
+${make_dealloc("clReleaseMemObject(self._mem)")}
 ${properties_getter("Buffer", "_mem", buffer_properties)}
 ${properties_repr(['size', 'offset'])}
     property offset:
         def __get__(self):
             return self._offset
-${make_dealloc("clReleaseMemObject(self._mem)")}
 
 
 cdef class CLImage(CLBuffer):
@@ -415,8 +429,7 @@ ${make_dealloc("clReleaseKernel(self._kernel)")}
             _setParameters(self, value)
             self._targs = value
 
-    def setArgs(self, *args):
-        _setArgs(self, args)
+    def setArgs(self, *args): _setArgs(self, args)
 
 
 cdef class CLEvent(CLObject):
@@ -459,10 +472,7 @@ cpdef list getPlatforms():
     cdef cl_uint num_platforms
     cdef CLPlatform instance
     cdef int i
-    cdef cl_int errcode
-    errcode = clGetPlatformIDs(MAX_PLATFORM_NUMBER, platforms, &num_platforms)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-
+${make_safe_call('clGetPlatformIDs(MAX_PLATFORM_NUMBER, platforms, &num_platforms)', '    ')}
     for i in xrange(num_platforms):
         instance = CLPlatform.__new__(CLPlatform)
         instance._platform = platforms[i]
@@ -473,28 +483,19 @@ cpdef CLContext createContext(list devices):
     cdef long num_devices = len(devices)
     cdef cl_device_id clDevices[100]
     cdef cl_context context
-    cdef cl_int errcode
-    cdef CLContext instance
-
     for i from 0 <= i < min(num_devices, 100):
         clDevices[i] = (<CLDevice>devices[i])._device
-    context = clCreateContext(NULL, num_devices, clDevices,
-                              NULL, NULL, &errcode)
-    if errcode < 0: raise translateError(errcode)
-    instance = CLContext.__new__(CLContext)
-    ${init_instance(['context', 'devices'], '    ')}
-    return instance
+${make_safe_create('context = clCreateContext(NULL, num_devices, clDevices, NULL, NULL, &errcode)', '    ')}
+${init_instance(['context', 'devices'], '    ', return_instance = True, init = 'CLContext')}
 
 cpdef waitForEvents(list events):
     cdef int num_events = len(events)
     cdef cl_event lst[100]
     cdef CLEvent evt
-    cdef cl_int errcode
 
     for i from 0 <= i < min(num_events, 100):
         lst[i] = (<CLEvent>events[i])._event
-    errcode = clWaitForEvents(num_events, lst)
-    if errcode < 0: raise translateError(errcode)
+${make_safe_call('clWaitForEvents(num_events, lst)', '    ')}
 
 <%def name="makesection(name)">
 #
@@ -581,18 +582,36 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
     def __repr__(self):
         return '${repr_str}' % (${prop_str} )
 </%def>
-<%def name="init_instance(args, indentation)">
+<%def name="init_instance(args, indentation, return_instance = False, init = None)">\
+%if init is not None:
+${indentation}cdef ${init} instance = ${init}.__new__(${init})
+%endif
     %for a in args: 
 ${indentation}instance._${a} = ${a}
     %endfor
+    %if return_instance:
+${indentation}return instance\
+    %endif
 </%def>
-<%def name="make_dealloc(command)">
+<%def name="make_dealloc(command)">\
     def __dealloc__(self):
         cdef cl_int errcode
         errcode = ${command} \
 <%text>
         if errcode < 0: print("Error in OpenCL deallocation <%s>" % self.__class__.__name__)
 </%text>\
+</%def>
+<%def name="make_safe_call(command, indentation, init = True)">\
+%if init:
+${indentation}cdef cl_int errcode
+%endif
+${indentation}errcode = ${command}
+${indentation}if errcode < 0: raise CLError(error_translation_table[errcode])\
+</%def>
+<%def name="make_safe_create(command, indentation, init = True)">\
+${indentation}cdef cl_int errcode
+${indentation}${command}
+${indentation}if errcode < 0: raise CLError(error_translation_table[errcode])\
 </%def>
 
 
