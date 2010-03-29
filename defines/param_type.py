@@ -11,11 +11,11 @@ INTP_T          = 8
 
 FLOAT32_T       = 9
 FLOAT64_T       = 10
-FLOAT128_T      = 11
+#FLOAT128_T      = 11
 
-BUFFER_T        = 12
-IMAGE_T         = 12
-SAMPLER_T       = 13
+BUFFER_T        = 11
+IMAGE_T         = 11
+SAMPLER_T       = 12
 
 
 

@@ -383,98 +383,8 @@ cdef bytes _getKernelInfo_string(cl_kernel kernel, cl_kernel_info param_name):
     cdef bytes s = string[:size - 1]
     return s
 
-cdef unsigned int _getSamplerInfo(cl_sampler sampler, cl_sampler_info info) except *:
-    cdef unsigned int value
-    cdef size_t size
-    CL_SAFE_CALL clGetSamplerInfo(sampler, info, sizeof(unsigned int), &value, &size)
-    return value
-
-cdef int _getEventInfo(cl_event event, cl_event_info info) except *:
-    cdef int value
-    cdef size_t size
-    CL_SAFE_CALL clGetEventInfo(event, info, sizeof(int), &value, &size)
-    return value
-
-cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
-    cdef cl_device_id devices[MAX_OPENCL_DEVICES_NUMBER]
-    cdef cl_uint num_devices
-    CL_SAFE_CALL clGetDeviceIDs(platform, dtype, MAX_OPENCL_DEVICES_NUMBER, devices, &num_devices)
-    cdef CLDevice instance
-    cdef int i
-    cdef list pydevices = []
-    for i in xrange(num_devices):
-        instance = CLDevice.__new__(CLDevice)
-        instance._device = devices[i]
-        pydevices.append(instance)
-    return pydevices
-
-cdef tuple _getWorkItemDimensions(cl_device_id device, unsigned int dim):
-    cdef size_t itemSizes[10]
-    _getDeviceInfo_vect(device, CL_DEVICE_MAX_WORK_ITEM_SIZES,
-                        itemSizes, 10 * sizeof(size_t))
-    cdef int i
-    return tuple([itemSizes[i] for i in xrange(dim)])
 
 
-cdef CLEvent _enqueueNDRange(cl_command_queue queue, cl_kernel kernel, tuple global_work_size, tuple local_work_size):
-    cdef size_t gwsize[3]
-    cdef size_t lwsize[3]
-    cdef cl_event evt
-    cdef int i
-    for i from 0 <= i < 3:
-        gwsize[i] = global_work_size[i]
-        lwsize[i] = local_work_size[i]
-    CL_SAFE_CALL clEnqueueNDRangeKernel(queue, kernel, 3, NULL, gwsize, lwsize, 0, NULL, &evt)
-
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
-
-cdef void _enqueueWaitForEvents(cl_command_queue queue, list events):
-    cdef cl_event lst[100]
-    cdef CLEvent evt
-    cdef int num_events = min(100, len(events))
-    cdef int i
-    for i from 0 <= i < num_events:
-        evt = events[i]
-        lst[i] = evt._event
-    CL_SAFE_CALL clEnqueueWaitForEvents(queue, num_events, lst)
-
-cdef void _enqueueBarrier(cl_command_queue queue):
-        CL_SAFE_CALL clEnqueueBarrier(queue)
-
-cdef CLEvent _enqueueMarker(cl_command_queue queue):
-        cdef cl_event event
-        cdef CLEvent instance
-        CL_SAFE_CALL clEnqueueMarker(queue, &event)
-        instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        return instance
-
-cdef CLEvent _enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer,
-                                 cl_bool blocking, size_t offset, size_t cb,
-                                 void *ptr):
-    cdef cl_event evt
-    CL_SAFE_CALL clEnqueueWriteBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &evt)
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
-
-cdef CLEvent _enqueueReadBuffer(cl_command_queue queue, cl_mem buffer,
-                                 cl_bool blocking, size_t offset, size_t cb,
-                                 void *ptr):
-    cdef cl_event evt
-    CL_SAFE_CALL clEnqueueReadBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &evt)
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
-
-cdef CLEvent _enqueueCopyBuffer(cl_command_queue queue, cl_mem src,cl_mem dst, size_t src_offset, size_t dst_offset, size_t size, cl_bool blocking):
-    cdef cl_event evt
-    CL_SAFE_CALL clEnqueueCopyBuffer(queue, src, dst, src_offset, dst_offset, size, 0, NULL, &evt)
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
 
 cdef CLEvent _enqueueMapBuffer(cl_command_queue queue, cl_mem src, cl_bool blocking, cl_map_flags flags, size_t offset, size_t size, void **dst):
     cdef cl_event evt
@@ -490,20 +400,8 @@ cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *pt
     instance._event = evt
     return instance
 
-cdef CLEvent _enqueueReadImage (cl_command_queue queue, cl_mem image, cl_bool blocking, size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
-    cdef cl_event evt
-    CL_SAFE_CALL clEnqueueReadImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &evt)
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
 
 
-cdef CLEvent _enqueueWriteImage (cl_command_queue queue, cl_mem image, cl_bool blocking, size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
-    cdef cl_event evt
-    CL_SAFE_CALL clEnqueueWriteImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &evt)
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = evt
-    return instance
 
 
 
@@ -960,7 +858,7 @@ cdef class CLCommandQueue(CLObject):
         return event
 
     def enqueueReadImage(self, np.ndarray ary, CLImage mem, bint blocking = True):
-        cdef size_t shape[3]
+        cdef size_t shape[3] = ary.shape
         cdef size_t origin[3]
         origin[0] = 0; origin[1] = 0; origin[2] = 0
         cdef size_t pitch
