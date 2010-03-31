@@ -427,7 +427,7 @@ cdef extern from "CL/cl.h":
         cdef cl_int clCreateKernelsInProgram(cl_program,
                                              cl_uint,
                                              cl_kernel *,
-                                             cl_int *) nogil
+                                             cl_uint *) nogil
 
         # Kernel API
         cdef cl_int clReleaseKernel(cl_kernel) nogil

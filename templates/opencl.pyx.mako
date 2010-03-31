@@ -251,7 +251,7 @@ ${make_safe_call('clGetProgramBuildInfo(program._program, device._device, CL_PRO
 
 cdef list _createKernelsInProgram(CLProgram program):
     cdef cl_kernel kernels[20]
-    cdef cl_int num_kernels
+    cdef cl_uint num_kernels
 ${make_safe_call('clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)', '    ')}
     cdef list pykernels = []
     cdef CLKernel instance
@@ -344,7 +344,7 @@ ${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
 
 cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
     cdef cl_event event
-${make_safe_create('clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &event)', '    ')}
+${make_safe_call('clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &event)', '    ')}
 ${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
 
 cdef void _build(CLProgram program, list options):
