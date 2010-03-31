@@ -691,5 +691,3 @@ ${indentation}cdef cl_int errcode
 ${indentation}${command}
 ${indentation}if errcode < 0: raise CLError(error_translation_table[errcode])\
 </%def>
-
-

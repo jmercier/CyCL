@@ -8,8 +8,8 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 from mako.template import Template
-print "building templates"
-for file in os.listdir("templates"):
+print "makoing template"
+for file in ['opencl.pyx.mako']:
     with open(os.path.join("templates", file)) as input:
         t = Template(input.read()).render()
     with open(os.path.join("src/%s" % (file[:-5])), 'w') as output:
