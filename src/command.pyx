@@ -54,7 +54,12 @@ cdef class CLReadBufferNDArray(CLCommand):
 cdef class CLNDRangeKernel(CLCommand):
     def __cinit__(self, CLKernel kernel, tuple global_work_size = (1,1,1), tuple local_work_size = (1,1,1)):
         self._kernel = kernel
-        _gws = global_work_size
+        self._gws[0] = global_work_size[0]
+        self._gws[1] = global_work_size[1]
+        self._gws[2] = global_work_size[2]
+        self._lws[0] = local_work_size[0]
+        self._lws[1] = local_work_size[1]
+        self._lws[2] = local_work_size[2]
 
 
     cdef object call(self, CLCommandQueue queue):

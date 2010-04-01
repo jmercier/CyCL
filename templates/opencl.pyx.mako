@@ -130,7 +130,7 @@ sampler_properties = { 'cl_uint'    : [('normalized', 'CL_SAMPLER_NORMALIZED_COO
 ${copyright()}
 cimport opencl
 cimport numpy as np
-from clcommand cimport *
+from command cimport *
 
 from opencl cimport *
 
@@ -409,6 +409,8 @@ cdef class CLEvent(CLObject):
 ${make_dealloc("clReleaseEvent(self._event)")}
 ${properties_getter("Event", "_event", event_properties)}
 ${properties_getter("EventProfiling", "_event", profiling_properties)}
+${properties_repr(['type', 'status'])}
+
 
 
 cdef class CLSampler(CLObject):

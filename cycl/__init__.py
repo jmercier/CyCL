@@ -1,2 +1,2 @@
 from opencl import *
-from clcommand import *
+from command import *
