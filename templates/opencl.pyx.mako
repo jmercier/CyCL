@@ -361,7 +361,7 @@ ${make_safe_call('clFinish(self._command_queue)', '        ')}
 
     def enqueueWriteBuffer(self, CLBuffer mem, np.ndarray ary, bint blocking = True):
         cdef unsigned int copy_size = ary.size * ary.dtype.itemsize
-        if (mem.size - mem_offset) != copy.size:
+        if (mem.size - mem._offset) != copy_size:
             raise AttributeError("Size Mismatch")
         return _enqueueWriteBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
 
