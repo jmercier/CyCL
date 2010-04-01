@@ -81,6 +81,7 @@ cdef class CLContext(CLObject):
 
 cdef class CLEvent(CLObject):
     cdef cl_event           _event
+    cdef CLCommandQueue     _queue
 
 
 cdef class CLSampler(CLObject):

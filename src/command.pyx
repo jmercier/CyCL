@@ -22,6 +22,7 @@ cdef class CLCopyBuffer(CLCommand):
                                       &event)
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
+        instance._queue = queue
         instance._event = event
         return instance
 
@@ -48,6 +49,7 @@ cdef class CLReadBufferNDArray(CLCommand):
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
         instance._event = event
+        instance._queue = queue
         return instance
 
 
@@ -74,6 +76,7 @@ cdef class CLNDRangeKernel(CLCommand):
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
         instance._event = event
+        instance._queue = queue
         return instance
 
 
@@ -102,6 +105,7 @@ cdef class CLWriteBufferNDArray(CLCommand):
         if errcode < 0: raise Exception("Excep")
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
         instance._event = event
+        instance._queue = queue
         return instance
 
 
@@ -141,6 +145,7 @@ cdef class CLReadImageNDArray(CLCommand):
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
         instance._event = event
+        instance._queue = queue
         return instance
 
 cdef class CLWriteImageNDArray(CLCommand):
@@ -175,6 +180,7 @@ cdef class CLWriteImageNDArray(CLCommand):
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
         instance._event = event
+        instance._queue = queue
         return instance
 
 
@@ -192,6 +198,7 @@ cdef class CLMarker(CLCommand):
         errcode = clEnqueueMarker(queue._command_queue, &event)
         if errcode < 0: raise translateError(errcode)
         cdef CLEvent instance = CLEvent.__new__(CLEvent)
+        instance._queue = queue
         instance._event = event
         return instance
 
@@ -218,6 +225,7 @@ cdef class CLMapBuffer(CLCommand):
         cdef CLEvent evt = CLEvent.__new__(CLEvent)
         cdef CLMappedBuffer instance = CLMappedBuffer.__new__(CLMappedBuffer)
         evt._event = event
+        evt._queue = queue
         instance._command_queue = queue
         instance._address = address
         instance._buffer = self._src
