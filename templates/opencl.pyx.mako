@@ -130,6 +130,8 @@ sampler_properties = { 'cl_uint'    : [('normalized', 'CL_SAMPLER_NORMALIZED_COO
 ${copyright()}
 cimport opencl
 cimport numpy as np
+from clcommand cimport *
+
 from opencl cimport *
 
 from defines import *
@@ -139,6 +141,9 @@ cdef dict error_translation_table = {
         ${e} : "${e}",
 %endfor
 }
+
+cdef CLError translateError(cl_int errcode):
+    return CLError(error_translation_table[errcode])
 
 ${makesection("Args Translation")}
 cdef union param:
@@ -299,48 +304,6 @@ cdef void _enqueueWaitForEvents(cl_command_queue queue, list events) except *:
         lst[i] = evt._event
 ${make_safe_call('clEnqueueWaitForEvents(queue, num_events, lst)', '    ')}
 
-cdef CLEvent _enqueueNDRange(cl_command_queue queue, cl_kernel kernel, size_t gws[3], size_t lws[3]):
-    cdef cl_event event
-${make_safe_call('clEnqueueNDRangeKernel(queue, kernel, 3, NULL, gws, lws, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueWriteBuffer(cl_command_queue queue, cl_mem buffer,
-                                 cl_bool blocking, size_t offset, size_t cb,
-                                 void *ptr):
-    cdef cl_event event
-${make_safe_call('clEnqueueWriteBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueReadBuffer(cl_command_queue queue, cl_mem buffer,
-                                 cl_bool blocking, size_t offset, size_t cb,
-                                 void *ptr):
-    cdef cl_event event
-${make_safe_call('clEnqueueReadBuffer(queue, buffer, blocking, offset, cb, ptr, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueCopyBuffer(cl_command_queue queue, cl_mem src,cl_mem dst,
-                                size_t src_offset, size_t dst_offset, size_t size, cl_bool blocking):
-    cdef cl_event event
-${make_safe_call('clEnqueueCopyBuffer(queue, src, dst, src_offset, dst_offset, size, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueReadImage (cl_command_queue queue, cl_mem image, cl_bool blocking,
-                                size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
-    cdef cl_event event
-${make_safe_call('clEnqueueReadImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueWriteImage (cl_command_queue queue, cl_mem image, cl_bool blocking,
-                                 size_t origin[3], size_t region[3], size_t row_pitch, size_t slice_pitch, void *ptr):
-    cdef cl_event event
-${make_safe_call('clEnqueueWriteImage(queue, image, blocking, origin, region, row_pitch, slice_pitch, ptr, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
-cdef CLEvent _enqueueMapBuffer(cl_command_queue queue, cl_mem src, cl_bool blocking,
-                               cl_map_flags flags, size_t offset, size_t size, void **dst):
-    cdef cl_event event
-${make_safe_create('dst[0] = clEnqueueMapBuffer(queue, src, blocking, flags, offset, size, 0, NULL, &event, &errcode)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
 
 cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
     cdef cl_event event
@@ -359,83 +322,15 @@ ${make_safe_call('clFlush(self._command_queue)', '        ')}
     def finish(self):
 ${make_safe_call('clFinish(self._command_queue)', '        ')}
 
-    def enqueueWriteBuffer(self, CLBuffer mem, np.ndarray ary, bint blocking = True):
-        cdef unsigned int copy_size = ary.size * ary.dtype.itemsize
-        if (mem.size - mem_offset) != copy.size:
-            raise AttributeError("Size Mismatch")
-        return _enqueueWriteBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
-
-    def enqueueReadBuffer(self, np.ndarray ary, CLBuffer mem, bint blocking = True):
-        cdef unsigned int copy_size = mem.size - mem._offset
-        if copy_size  != ary.size * ary.dtype.itemsize:
-            raise AttributeError("Size mismatch")
-        return _enqueueReadBuffer(self._command_queue, mem._mem, blocking, mem._offset, copy_size, ary.data)
-
-    def enqueueCopyBuffer(self, CLBuffer src, CLBuffer dst, bint blocking = True):
-        cdef unsigned int copy_size = src.size - src._offset
-        if copy_size != dst.size - dst._offset:
-            raise AttributeError("Size mismatch")
-        return _enqueueCopyBuffer(self._command_queue, src._mem, dst._mem, src._offset, dst._offset, copy_size, blocking)
-
     def enqueueUnmapMemObject(self, CLMappedBuffer buffer):
         cdef CLEvent event = _enqueueUnmapMemObject(self._command_queue, buffer._buffer._mem, buffer._address)
         buffer._mapped = False
         return event
 
-    def enqueueBarrier(self): 
-${make_safe_call('clEnqueueBarrier(self._command_queue)', '        ')}
-
-    def enqueueMarker(self): 
-        cdef cl_event event
-${make_safe_call('clEnqueueMarker(self._command_queue, &event)', '        ')}
-${init_instance(['event'], '        ', return_instance = True, init = "CLEvent")}
+    def enqueueCmd(self, CLCommand cmd):
+        return cmd.call(self)
 
     def enqueueWaitForEvents(self, list events): _enqueueWaitForEvents(self._command_queue, events)
-
-    def enqueueReadImage(self, np.ndarray ary, CLImage mem, bint blocking = True):
-        cdef size_t shape[3], origin[3], pitch = 0, slice = 0
-        shape[1] = shape[2] = origin[0] = origin[1] = origin[2] = 0
-        shape[0] = ary.shape[0]
-        if ary.ndim > 1:
-            shape[1] = ary.shape[1]
-            pitch = ary.strides[0]
-        if ary.ndim > 2:
-            shape[2] = ary.shape[2]
-            pitch = ary.strides[1]
-            slice = ary.strides[0]
-        return _enqueueReadImage(self._command_queue, mem._mem, blocking, origin, shape, pitch, slice, ary.data)
-
-    def enqueueWriteImage(self, np.ndarray ary, CLImage mem, bint blocking = True):
-        cdef size_t shape[3], origin[3], pitch = 0, slice = 0
-        shape[0] = shape[1] = shape[2] = origin[0] = origin[1] = origin[2] = 0
-        if ary.ndim > 1:
-            shape[1] = ary.shape[1]
-            pitch = ary.strides[0]
-        if ary.ndim > 2:
-            shape[2] = ary.shape[2]
-            pitch = ary.strides[1]
-            slice = ary.strides[0]
-        return _enqueueWriteImage(self._command_queue, mem._mem, blocking, origin, shape, pitch, slice, ary.data)
-
-    def enqueueNDRange(self, CLKernel kernel, tuple global_work_size = (1,1,1), tuple local_work_size = (1,1,1)):
-        cdef size_t gws[3]
-        gws[0] = global_work_size[0]
-        gws[1] = global_work_size[1]
-        gws[2] = global_work_size[2]
-        cdef size_t lws[3]
-        lws[0] = local_work_size[0]
-        lws[1] = local_work_size[1]
-        lws[2] = local_work_size[2]
-        return _enqueueNDRange(self._command_queue, kernel._kernel, gws, lws)
-
-    def enqueueMapBuffer(self, CLBuffer buffer, cl_map_flags flags = CL_MAP_WRITE | CL_MAP_READ, bint blocking = True):
-        cdef size_t copy_size = buffer.size - buffer._offset
-        cdef void *address
-        cdef CLEvent event = _enqueueMapBuffer(self._command_queue, buffer._mem, blocking,flags, buffer._offset, copy_size, &address)
-${init_instance(['address', 'buffer'], '        ', init = "CLMappedBuffer")}
-        instance._mapped = True
-        instance._command_queue = self
-        return event, instance
 
 
 cdef class CLProgram(CLObject):

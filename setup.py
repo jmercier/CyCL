@@ -8,25 +8,28 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 from mako.template import Template
-print "makoing template"
-for file in ['opencl.pyx.mako']:
-    with open(os.path.join("templates", file)) as input:
-        t = Template(input.read()).render()
-    with open(os.path.join("src/%s" % (file[:-5])), 'w') as output:
-        output.write(t)
+#print "makoing template"
+#for file in ['opencl.pyx.mako']:
+#    with open(os.path.join("templates", file)) as input:
+#        t = Template(input.read()).render()
+#    with open(os.path.join("src/%s" % (file[:-5])), 'w') as output:
+#        output.write(t)
 
 
-opencl_srcs = ['src/opencl.pyx']
-opencl_extension = Extension("cycl.opencl", opencl_srcs,
+extensions = [ Extension("cycl.opencl", ['src/opencl.pyx'],
+                         libraries = ["OpenCL"],
+                         library_dirs = [opencl_library_dir],
+                         include_dirs = [opencl_include_dir, 'src']),
+               Extension("cycl.clcommand", ['src/clcommand.pyx'],
                              libraries = ["OpenCL"],
                              library_dirs = [opencl_library_dir],
-                             include_dirs = [opencl_include_dir, 'src'])
+                             include_dirs = [opencl_include_dir, 'src'])]
 
 cycl_srcs = ['cycl']
 
 setup(
     cmdclass = {'build_ext': build_ext},
-    ext_modules = [opencl_extension],
+    ext_modules = extensions,
     packages = ['cycl', 'cycl/defines'],
     name = 'CyCL',
     version = '0.0.1',
