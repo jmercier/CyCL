@@ -7,11 +7,11 @@ from Cython.Distutils import build_ext
 
 
 extensions = [ Extension("cycl.opencl", ['src/opencl.pyx'],
-                         libraries = ["OpenCL"],
+                         libraries = [opencl_library],
                          library_dirs = [opencl_library_dir],
                          include_dirs = [opencl_include_dir, 'src']),
                Extension("cycl.command", ['src/command.pyx'],
-                             libraries = ["OpenCL"],
+                             libraries = [opencl_library],
                              library_dirs = [opencl_library_dir],
                              include_dirs = [opencl_include_dir, 'src'])]
 
