@@ -1,4 +1,3 @@
- 
 # Copyright (c) 2010 Jean-Pascal Mercier
 #
 # Permission is hereby granted, free of charge, to any person
@@ -21,7 +20,6 @@
 # WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
-
 cimport opencl
 cimport numpy as np
 from command cimport *
@@ -325,74 +323,47 @@ cdef cl_uint _getSamplerInfo_cl_uint(cl_sampler obj, cl_sampler_info param_name)
 
 
 
-DEF MAX_DEVICES_NUMBER = 10
 cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
-    cdef cl_device_id devices[MAX_DEVICES_NUMBER]
+    cdef cl_device_id devices[10]
     cdef cl_uint num_devices
     cdef cl_int errcode
-    errcode = clGetDeviceIDs(platform, dtype, MAX_DEVICES_NUMBER, devices, &num_devices)
+    errcode = clGetDeviceIDs(platform, dtype, 10, devices, &num_devices)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLDevice instance
     cdef int i
-    cdef list pydevices = []
-    for i in xrange(num_devices):
-        instance = CLDevice.__new__(CLDevice)
-        instance._device = devices[i]
-        pydevices.append(instance)
-    return pydevices
+    return [_createCLDevice(devices[i]) for i in xrange(num_devices)]
 
-cdef CLImage _createImage2D(CLContext context, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
+cdef CLImage _createImage2D(CLContext context, size_t width, size_t height, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags):
     cdef cl_image_format format = [order, itype]
-    cdef cl_uint offset = 0
     cdef cl_int errcode
-    cdef cl_mem mem = clCreateImage2D(context._context, CL_MEM_READ_WRITE, &format, width, height, 0, NULL, &errcode)
+    cdef cl_mem mem = clCreateImage2D(context._context, flags, &format, width, height, 0, NULL, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLImage instance = CLImage.__new__(CLImage)
-    instance._mem = mem
-    instance._context = context
-    instance._offset = offset
-    return instance
+    return _createCLImage(mem, context, 0)
 
-cdef CLImage _createImage3D(CLContext context, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype):
+cdef CLImage _createImage3D(CLContext context, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags):
     cdef cl_image_format format = [order, itype]
-    cdef cl_uint offset = 0
     cdef cl_int errcode
-    cdef cl_mem mem = clCreateImage3D(context._context, CL_MEM_READ_WRITE, &format, width, height, depth, 0, 0, NULL, &errcode)
+    cdef cl_mem mem = clCreateImage3D(context._context, flags, &format, width, height, depth, 0, 0, NULL, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLImage instance = CLImage.__new__(CLImage)
-    instance._mem = mem
-    instance._context = context
-    instance._offset = offset
-    return instance
+    return _createCLImage(mem, context, 0)
 
 cdef CLBuffer _createBuffer(CLContext context, size_t size, cl_mem_flags flags):
     cdef cl_uint offset = 0
     cdef cl_int errcode
     cdef cl_mem mem = clCreateBuffer(context._context, flags, size, NULL, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLBuffer instance = CLBuffer.__new__(CLBuffer)
-    instance._mem = mem
-    instance._context = context
-    instance._offset = offset
-    return instance
+    return _createCLBuffer(mem, context, offset)
 
 cdef CLCommandQueue _createCommandQueue(CLContext context, CLDevice device, cl_command_queue_properties flags):
     cdef cl_int errcode
     cdef cl_command_queue command_queue = clCreateCommandQueue(context._context, device._device, flags, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLCommandQueue instance = CLCommandQueue.__new__(CLCommandQueue)
-    instance._context = context
-    instance._command_queue = command_queue
-    return instance
+    return _createCLCommandQueue(context, command_queue)
 
 cdef CLSampler _createSampler(CLContext context, cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
     cdef cl_int errcode
     cdef cl_sampler sampler = clCreateSampler(context._context, normalized, amode, fmode, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLSampler instance = CLSampler.__new__(CLSampler)
-    instance._context = context
-    instance._sampler = sampler
-    return instance
+    return _createCLSampler(context, sampler)
 
 cdef CLProgram _createProgramWithSource(CLContext context, bytes pystring):
     cdef const_char_ptr strings[1]
@@ -401,19 +372,13 @@ cdef CLProgram _createProgramWithSource(CLContext context, bytes pystring):
     cdef cl_int errcode
     cdef cl_program program = clCreateProgramWithSource(context._context, 1, strings, &sizes, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLProgram instance = CLProgram.__new__(CLProgram)
-    instance._context = context
-    instance._program = program
-    return instance
+    return _createCLProgram(context, program)
 
 cdef CLKernel _createKernel(CLProgram program, bytes string):
     cdef cl_int errcode
     cdef cl_kernel kernel = clCreateKernel(program._program, string, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLKernel instance = CLKernel.__new__(CLKernel)
-    instance._program = program
-    instance._kernel = kernel
-    return instance
+    return _createCLKernel(program, kernel)
 
 cdef bytes _getBuildLog(CLProgram program, CLDevice device):
     cdef char log[10000]
@@ -430,15 +395,8 @@ cdef list _createKernelsInProgram(CLProgram program):
     cdef cl_int errcode
     errcode = clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef list pykernels = []
-    cdef CLKernel instance
     cdef int i
-    for i in xrange(num_kernels):
-        instance = CLKernel.__new__(CLKernel)
-        instance._kernel = kernels[i]
-        instance._program = program
-        pykernels.append(instance)
-    return pykernels
+    return [_createCLKernel(program, kernels[i]) for i in xrange(num_kernels)]
 
 cdef void _setArgs(CLKernel kernel, tuple args) except *:
     if len(args) != len(kernel._targs):
@@ -477,16 +435,6 @@ cdef void _enqueueWaitForEvents(cl_command_queue queue, list events) except *:
     errcode = clEnqueueWaitForEvents(queue, num_events, lst)
     if errcode < 0: raise CLError(error_translation_table[errcode])
 
-
-cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
-    cdef cl_event event
-    cdef cl_int errcode
-    errcode = clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &event)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLEvent instance = CLEvent.__new__(CLEvent)
-    instance._event = event
-    return instance
-
 cdef void _build(CLProgram program, list options):
     cdef cl_int errcode
     errcode = clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)
@@ -515,12 +463,7 @@ cdef class CLCommandQueue(CLObject):
         errcode = clFinish(self._command_queue)
         if errcode < 0: raise CLError(error_translation_table[errcode])
 
-    def enqueueUnmapMemObject(self, CLMappedBuffer buffer):
-        cdef CLEvent event = _enqueueUnmapMemObject(self._command_queue, buffer._buffer._mem, buffer._address)
-        buffer._mapped = False
-        return event
-
-    def enqueueCmd(self, CLCommand cmd):
+    def enqueue(self, CLCommand cmd):
         return cmd.call(self)
 
     def enqueueWaitForEvents(self, list events): _enqueueWaitForEvents(self._command_queue, events)
@@ -542,27 +485,38 @@ cdef class CLProgram(CLObject):
         _build(self, options)
         return self
 
-cdef class CLMappedBuffer(CLObject):
-
-    def __repr__(self):
-        return '<%s address="%s" size="%s">' % (self.__class__.__name__, self.address, self.size, )
+cdef class CLMappedBuffer:
+    def __cinit__(self):
+        self._ready = False
 
     property address:
         def __get__(self):
             return <np.Py_intptr_t> self._address
     property __array_interface__:
         def __get__(self):
+            if not self._ready:
+                raise AttributeError ("Memory not Mapped")
             return { "shape" : (self._buffer.size,),
                      "typestr" : "|i1",
                      "data" : (<np.Py_intptr_t> self._address, False),
                      "version" : 3}
+
+    property mapped:
+        def __get__(self):
+            return self._ready
     property size:
         def __get__(self):
+            if not self._ready:
+                raise AttributeError ("Memory not Mapped")
             return self._buffer.size
 
+    def __repr__(self):
+        return '<%s address="%s" mapped="%s">' % (self.__class__.__name__, self.address, self.mapped, )
+
+
     def __dealloc__(self):
-        if self._mapped:
-            self._command_queue.enqueueUnmapMemObject(self)
+        if self._ready:
+            print "Memory leak detected, YOU SHOULD UNMAP MAPPED MEMORY"
 
 
 cdef class CLDevice(CLObject):
@@ -723,10 +677,6 @@ cdef class CLDevice(CLObject):
                                         CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE)
 
 
-    def __repr__(self):
-        return '<%s name="%s" type="%s" vendor="%s" driverVersion="%s">' % (self.__class__.__name__, self.name, self.type, self.vendor, self.driverVersion, )
-
-
 cdef class CLPlatform(CLObject):
 
     property version:
@@ -823,7 +773,7 @@ cdef class CLKernel(CLObject):
 
 
     def __repr__(self):
-        return '<%s name="%s" numArgs="%s">' % (self.__class__.__name__, self.name, self.numArgs, )
+        return '<%s name="%s" numArgs="%s" ready="%s">' % (self.__class__.__name__, self.name, self.numArgs, self.ready, )
 
     def __dealloc__(self):
         cdef cl_int errcode
@@ -836,9 +786,18 @@ cdef class CLKernel(CLObject):
 
         def __set__(self, tuple value):
             _setParameters(self, value)
+            self._ready = True
             self._targs = value
 
-    def setArgs(self, *args): _setArgs(self, args)
+    property ready:
+        def __get__(self):
+            return self._ready
+
+    def setArgs(self, *args):
+        if not self._ready:
+            raise AttributeError("Kernel is not ready : did you forget to type it")
+        _setArgs(self, args)
+
 
 
 cdef class CLEvent(CLObject):
@@ -880,8 +839,6 @@ cdef class CLEvent(CLObject):
         return '<%s type="%s" status="%s">' % (self.__class__.__name__, self.type, self.status, )
 
 
-
-
 cdef class CLSampler(CLObject):
     def __dealloc__(self):
         cdef cl_int errcode
@@ -919,10 +876,10 @@ cdef class CLContext(CLObject):
 
     def createBuffer(self, size_t size, cl_mem_flags flags = CL_MEM_READ_WRITE):
         return _createBuffer(self, size, flags)
-    def createImage2D(self, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
-        return _createImage2D(self, width, height, order, itype)
-    def createImage3D(self, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype):
-        return _createImage3D(self, width, height, depth, order, itype)
+    def createImage2D(self, size_t width, size_t height, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags = CL_MEM_READ_WRITE ):
+        return _createImage2D(self, width, height, order, itype, flags)
+    def createImage3D(self, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags = CL_MEM_READ_WRITE):
+        return _createImage3D(self, width, height, depth, order, itype, flags)
     def createCommandQueue(self, CLDevice device, cl_command_queue_properties flags = <cl_command_queue_properties>0):
         return _createCommandQueue(self, device, flags)
     def createSampler(self, cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
@@ -942,23 +899,23 @@ cdef class CLContext(CLObject):
 #
 #
 
-DEF MAX_PLATFORM_NUMBER = 15
 cpdef list getPlatforms():
-    cdef list pyplatforms = []
-    cdef cl_platform_id platforms[MAX_PLATFORM_NUMBER]
+    """
+    Obtain the list of platforms available.
+    """
+    cdef cl_platform_id platforms[15]
     cdef cl_uint num_platforms
-    cdef CLPlatform instance
     cdef int i
     cdef cl_int errcode
-    errcode = clGetPlatformIDs(MAX_PLATFORM_NUMBER, platforms, &num_platforms)
+    errcode = clGetPlatformIDs(15, platforms, &num_platforms)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    for i in xrange(num_platforms):
-        instance = CLPlatform.__new__(CLPlatform)
-        instance._platform = platforms[i]
-        pyplatforms.append(instance)
-    return pyplatforms
+    return [_createCLPlatform(platforms[i]) for i in xrange(num_platforms)]
+
 
 cpdef CLContext createContext(list devices):
+    """
+    Creates an OpenCL context.
+    """
     cdef long num_devices = len(devices)
     cdef cl_device_id clDevices[100]
     cdef cl_context context
@@ -967,12 +924,13 @@ cpdef CLContext createContext(list devices):
     cdef cl_int errcode
     context = clCreateContext(NULL, num_devices, clDevices, NULL, NULL, &errcode)
     if errcode < 0: raise CLError(error_translation_table[errcode])
-    cdef CLContext instance = CLContext.__new__(CLContext)
-    instance._context = context
-    instance._devices = devices
-    return instance
+    return _createCLContext(devices, context)
+
 
 cpdef waitForEvents(list events):
+    """
+    Waits on the host thread for commands identified by event objects in event_list to complet.
+    """
     cdef int num_events = len(events)
     cdef cl_event lst[100]
     cdef CLEvent evt

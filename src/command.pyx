@@ -21,10 +21,7 @@ cdef class CLCopyBuffer(CLCommand):
                                       0, NULL,
                                       &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._queue = queue
-        instance._event = event
-        return instance
+        return _createCLEvent(event, queue)
 
 cdef class CLReadBufferNDArray(CLCommand):
     def __cinit__(self, np.ndarray dst, CLBuffer src, cl_bool blocking = True):
@@ -47,10 +44,7 @@ cdef class CLReadBufferNDArray(CLCommand):
                                       0, NULL,
                                       &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        instance._queue = queue
-        return instance
+        return _createCLEvent(event, queue)
 
 
 cdef class CLNDRangeKernel(CLCommand):
@@ -74,12 +68,7 @@ cdef class CLNDRangeKernel(CLCommand):
                                          0, NULL,
                                          &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        instance._queue = queue
-        return instance
-
-
+        return _createCLEvent(event, queue)
 
 
 cdef class CLWriteBufferNDArray(CLCommand):
@@ -103,15 +92,24 @@ cdef class CLWriteBufferNDArray(CLCommand):
                                       0, NULL,
                                       &event)
         if errcode < 0: raise Exception("Excep")
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        instance._queue = queue
-        return instance
+        return _createCLEvent(event, queue)
 
 
 cdef class CLUnmapBuffer(CLCommand):
-    cdef CLEvent call(self, CLCommandQueue queue):
-        raise AttributeError("Abstract Method")
+    def __cinit__(self, CLMappedBuffer buffer):
+        self._dst = buffer
+
+    cdef object call(self, CLCommandQueue queue):
+        cdef cl_event event
+        cdef cl_int errcode
+        if not self._dst._ready: raise AttributeError("Already Unmap")
+        errcode = clEnqueueUnmapMemObject(queue._command_queue,
+                                          self._dst._buffer._mem, self._dst._address,
+                                          0, NULL,
+                                          &event)
+        if errcode < 0: raise Exception("Excep")
+        self._dst._ready = False
+        return _createCLEvent(event, queue)
 
 cdef class CLReadImageNDArray(CLCommand):
     def __cinit__(self, np.ndarray dst, CLImage src, cl_bool blocking = True):
@@ -143,10 +141,7 @@ cdef class CLReadImageNDArray(CLCommand):
                                    0, NULL,
                                    &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        instance._queue = queue
-        return instance
+        return _createCLEvent(event, queue)
 
 cdef class CLWriteImageNDArray(CLCommand):
     def __cinit__(self, CLImage dst, np.ndarray src, cl_bool blocking = True):
@@ -178,10 +173,7 @@ cdef class CLWriteImageNDArray(CLCommand):
                                    0, NULL,
                                    &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._event = event
-        instance._queue = queue
-        return instance
+        return _createCLEvent(event, queue)
 
 
 cdef class CLBarrier(CLCommand):
@@ -197,36 +189,30 @@ cdef class CLMarker(CLCommand):
         cdef cl_int errcode
         errcode = clEnqueueMarker(queue._command_queue, &event)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent instance = CLEvent.__new__(CLEvent)
-        instance._queue = queue
-        instance._event = event
-        return instance
+        return _createCLEvent(event, queue)
 
 cdef class CLMapBuffer(CLCommand):
-    def __cinit__(self, CLBuffer src, cl_map_flags flags, cl_bool blocking = True):
-        self._size = src.size - src._offset
+    def __cinit__(self, CLMappedBuffer dst, CLBuffer src, cl_map_flags flags, cl_bool blocking = True):
         self._flags = flags
         self._blocking = True
         self._src = src
-        self._offset = src._offset
+        self._dst = dst
 
     cdef object call(self, CLCommandQueue queue):
-        cdef void *address
         cdef cl_event event
         cdef cl_int errcode
-        address = clEnqueueMapBuffer(queue._command_queue,
-                                     self._src._mem,
-                                     self._blocking,
-                                     self._flags,
-                                     self._offset, self._size,
-                                     0, NULL, &event,
-                                     &errcode)
+        if self._dst._ready: raise AttributeError("Buffer Already mapped")
+        self._dst._address = clEnqueueMapBuffer(queue._command_queue,
+                                                self._src._mem,
+                                                self._blocking,
+                                                self._flags,
+                                                self._src._offset, self._src.size - self._src._offset ,
+                                                0, NULL, &event,
+                                                &errcode)
         if errcode < 0: raise translateError(errcode)
-        cdef CLEvent evt = CLEvent.__new__(CLEvent)
-        cdef CLMappedBuffer instance = CLMappedBuffer.__new__(CLMappedBuffer)
-        evt._event = event
-        evt._queue = queue
-        instance._command_queue = queue
-        instance._address = address
-        instance._buffer = self._src
-        return evt, instance
+        self._dst._buffer = self._src
+        self._dst._ready = True
+        return _createCLEvent(event, queue)
+
+
+

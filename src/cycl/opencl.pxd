@@ -49,15 +49,13 @@ cdef class CLDevice(CLObject):
 
 cdef class CLBuffer(CLObject):
     cdef cl_mem             _mem
-    cdef unsigned int       _offset
+    cdef cl_uint            _offset
     cdef CLContext          _context
-    cdef void *             _host_ptr
 
-cdef class CLMappedBuffer(CLObject):
+cdef class CLMappedBuffer:
     cdef CLBuffer           _buffer
     cdef void *             _address
-    cdef CLCommandQueue     _command_queue
-    cdef bint               _mapped
+    cdef bint               _ready
 
 cdef class CLCommandQueue(CLObject):
     cdef cl_command_queue   _command_queue
@@ -69,6 +67,7 @@ cdef class CLKernel(CLObject):
     cdef cl_kernel          _kernel
     cdef CLProgram          _program
     cdef tuple              _targs
+    cdef cl_bool            _ready
 
 cdef class CLProgram(CLObject):
     cdef cl_program         _program
@@ -90,4 +89,68 @@ cdef class CLSampler(CLObject):
 
 cdef class CLPlatform(CLObject):
     cdef cl_platform_id     _platform
+
+
+cdef inline CLEvent _createCLEvent(cl_event event, CLCommandQueue queue):
+    cdef CLEvent instance = CLEvent.__new__(CLEvent)
+    instance._event             = event
+    instance._queue             = queue
+    return instance
+
+cdef inline CLPlatform _createCLPlatform(cl_platform_id pid):
+    cdef CLPlatform instance    = CLPlatform.__new__(CLPlatform)
+    instance._platform          = pid
+    return instance
+
+cdef inline CLDevice _createCLDevice(cl_device_id did):
+    cdef CLDevice instance      = CLDevice.__new__(CLDevice)
+    instance._device            = did
+    return instance
+
+cdef inline CLImage _createCLImage(cl_mem mem, CLContext context, cl_uint offset):
+    cdef CLImage instance       = CLImage.__new__(CLImage)
+    instance._mem               = mem
+    instance._context           = context
+    instance._offset            = offset
+    return instance
+
+cdef inline CLBuffer _createCLBuffer(cl_mem mem, CLContext context, cl_uint offset):
+    cdef CLBuffer instance       = CLBuffer.__new__(CLBuffer)
+    instance._mem               = mem
+    instance._context           = context
+    instance._offset            = offset
+    return instance
+
+cdef inline CLCommandQueue _createCLCommandQueue(CLContext context, cl_command_queue queue):
+    cdef CLCommandQueue instance = CLCommandQueue.__new__(CLCommandQueue)
+    instance._context           = context
+    instance._command_queue     = queue
+    return instance
+
+cdef inline CLSampler _createCLSampler(CLContext context, cl_sampler sampler):
+    cdef CLSampler instance = CLSampler.__new__(CLSampler)
+    instance._context           = context
+    instance._sampler           = sampler
+    return instance
+
+cdef inline CLProgram _createCLProgram(CLContext context, cl_program program):
+    cdef CLProgram instance = CLProgram.__new__(CLProgram)
+    instance._context           = context
+    instance._program           = program
+    return instance
+
+cdef inline CLKernel _createCLKernel(CLProgram program, cl_kernel kernel):
+    cdef CLKernel instance      = CLKernel.__new__(CLKernel)
+    instance._program           = program
+    instance._kernel            = kernel
+    instance._ready             = False
+    return instance
+
+cdef inline CLContext _createCLContext(list device, cl_context context):
+    cdef CLContext instance     = CLContext.__new__(CLContext)
+    instance._context           = context
+    instance._devices            = device
+    return instance
+
+
 

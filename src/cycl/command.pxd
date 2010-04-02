@@ -30,15 +30,16 @@ cdef class CLWriteBufferNDArray(CLCommand):
     cdef object call(self, CLCommandQueue queue)
 
 cdef class CLMapBuffer(CLCommand):
-    cdef size_t         _size
     cdef cl_map_flags   _flags
     cdef cl_bool        _blocking
     cdef CLBuffer       _src
-    cdef size_t         _offset
+    cdef CLMappedBuffer _dst
 
     cdef object call(self, CLCommandQueue queue)
 
 cdef class CLUnmapBuffer(CLCommand):
+    cdef CLMappedBuffer _dst
+
     cdef object call(self, CLCommandQueue queue)
 
 cdef class CLNDRangeKernel(CLCommand):

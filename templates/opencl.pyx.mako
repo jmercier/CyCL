@@ -1,3 +1,25 @@
+# Copyright (c) 2010 Jean-Pascal Mercier
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
 <%
 from itertools import izip
 param_types = ['byte', 'ubyte',
@@ -83,8 +105,12 @@ device_properties = { 'bytes'  :  [('driverVersion',            'CL_DRIVER_VERSI
                                    ('preferredVectorWidthDouble','CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE')],
                      'size_t'   : [('maxWorkGroupSize',         'CL_DEVICE_MAX_WORK_GROUP_SIZE'),
                                    ('profilingTimerResolution', 'CL_DEVICE_PROFILING_TIMER_RESOLUTION'),
-                                   ('image2DMaxSize',           ('CL_DEVICE_IMAGE2D_MAX_HEIGHT', 'CL_DEVICE_IMAGE2D_MAX_WIDTH')),
-                                   ('image3DMaxSize',           ('CL_DEVICE_IMAGE3D_MAX_HEIGHT', 'CL_DEVICE_IMAGE3D_MAX_WIDTH','CL_DEVICE_IMAGE3D_MAX_DEPTH'))],
+                                   ('image2DMaxSize',           ('CL_DEVICE_IMAGE2D_MAX_HEIGHT',
+                                                                 'CL_DEVICE_IMAGE2D_MAX_WIDTH')),
+                                   ('image3DMaxSize',           ('CL_DEVICE_IMAGE3D_MAX_HEIGHT',
+                                                                 'CL_DEVICE_IMAGE3D_MAX_WIDTH',
+                                                                 'CL_DEVICE_IMAGE3D_MAX_DEPTH'))],
+
                      'cl_ulong' : [('globalMemSize',            'CL_DEVICE_GLOBAL_MEM_SIZE'),
                                    ('globalMemCacheSize',       'CL_DEVICE_GLOBAL_MEM_CACHE_SIZE'),
                                    ('globalMemCachelineSize',   'CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE'),
@@ -108,7 +134,9 @@ buffer_properties = { 'size_t'   : [('size',                'CL_MEM_SIZE')]}
 
 image_properties = { 'size_t'  : [('slicePitch',            'CL_IMAGE_SLICE_PITCH'),
                                   ('elementSize',           'CL_IMAGE_ELEMENT_SIZE'),
-                                  ('shape',                 ('CL_IMAGE_WIDTH', 'CL_IMAGE_HEIGHT', 'CL_IMAGE_DEPTH')),
+                                  ('shape',                 ('CL_IMAGE_WIDTH',
+                                                             'CL_IMAGE_HEIGHT',
+                                                             'CL_IMAGE_DEPTH')),
                                   ('rowPitch',              'CL_IMAGE_ROW_PITCH')]}
 
 kernel_properties = { 'bytes'   : [('name', 'CL_KERNEL_FUNCTION_NAME')],
@@ -126,8 +154,7 @@ sampler_properties = { 'cl_uint'    : [('normalized', 'CL_SAMPLER_NORMALIZED_COO
                                        ('filterMode', 'CL_SAMPLER_FILTER_MODE'),
                                        ('addressingMode', 'CL_SAMPLER_ADDRESSING_MODE')]}
 
-%> \
-${copyright()}
+%>\
 cimport opencl
 cimport numpy as np
 from command cimport *
@@ -197,55 +224,46 @@ ${info_getter("getEventInfo","clGetEventInfo", "cl_event", "cl_event_info", even
 ${info_getter("getEventProfilingInfo","clGetEventProfilingInfo", "cl_event", "cl_profiling_info", profiling_properties)}
 ${info_getter("getSamplerInfo","clGetSamplerInfo", "cl_sampler", "cl_sampler_info", sampler_properties)}
 
-DEF MAX_DEVICES_NUMBER = 10
 cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
-    cdef cl_device_id devices[MAX_DEVICES_NUMBER]
+    cdef cl_device_id devices[10]
     cdef cl_uint num_devices
-${make_safe_call('clGetDeviceIDs(platform, dtype, MAX_DEVICES_NUMBER, devices, &num_devices)', '    ', init = 'CLDevice')}
-    cdef CLDevice instance
+${make_safe_call('clGetDeviceIDs(platform, dtype, 10, devices, &num_devices)', '    ', init = 'CLDevice')}
     cdef int i
-    cdef list pydevices = []
-    for i in xrange(num_devices):
-        instance = CLDevice.__new__(CLDevice)
-        instance._device = devices[i]
-        pydevices.append(instance)
-    return pydevices
+    return [_createCLDevice(devices[i]) for i in xrange(num_devices)]
 
-cdef CLImage _createImage2D(CLContext context, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
+cdef CLImage _createImage2D(CLContext context, size_t width, size_t height, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags):
     cdef cl_image_format format = [order, itype]
-    cdef cl_uint offset = 0
-${make_safe_create('cdef cl_mem mem = clCreateImage2D(context._context, CL_MEM_READ_WRITE, &format, width, height, 0, NULL, &errcode)', '    ')}
-${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLImage')}
+${make_safe_create('cdef cl_mem mem = clCreateImage2D(context._context, flags, &format, width, height, 0, NULL, &errcode)', '    ')}
+    return _createCLImage(mem, context, 0)
 
-cdef CLImage _createImage3D(CLContext context, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype):
+cdef CLImage _createImage3D(CLContext context, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags):
     cdef cl_image_format format = [order, itype]
-    cdef cl_uint offset = 0
-${make_safe_create('cdef cl_mem mem = clCreateImage3D(context._context, CL_MEM_READ_WRITE, &format, width, height, depth, 0, 0, NULL, &errcode)', '    ')}
-${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLImage')}
+${make_safe_create('cdef cl_mem mem = clCreateImage3D(context._context, flags, &format, width, height, depth, 0, 0, NULL, &errcode)', '    ')}
+    return _createCLImage(mem, context, 0)
 
 cdef CLBuffer _createBuffer(CLContext context, size_t size, cl_mem_flags flags):
     cdef cl_uint offset = 0
 ${make_safe_create('cdef cl_mem mem = clCreateBuffer(context._context, flags, size, NULL, &errcode)', '    ')}
-${init_instance(['mem', 'context', 'offset'], '    ', return_instance = True, init = 'CLBuffer')}
+    return _createCLBuffer(mem, context, offset)
 
 cdef CLCommandQueue _createCommandQueue(CLContext context, CLDevice device, cl_command_queue_properties flags):
 ${make_safe_create('cdef cl_command_queue command_queue = clCreateCommandQueue(context._context, device._device, flags, &errcode)', '    ')}
-${init_instance(['context', 'command_queue'], '    ', return_instance = True, init = 'CLCommandQueue')}
+    return _createCLCommandQueue(context, command_queue)
 
 cdef CLSampler _createSampler(CLContext context, cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
 ${make_safe_create('cdef cl_sampler sampler = clCreateSampler(context._context, normalized, amode, fmode, &errcode)', '    ')}
-${init_instance(['context', 'sampler'], '    ', return_instance = True, init = 'CLSampler')}
+    return _createCLSampler(context, sampler)
 
 cdef CLProgram _createProgramWithSource(CLContext context, bytes pystring):
     cdef const_char_ptr strings[1]
     strings[0] = pystring
     cdef size_t sizes = len(pystring)
 ${make_safe_create('cdef cl_program program = clCreateProgramWithSource(context._context, 1, strings, &sizes, &errcode)', '    ')}
-${init_instance(['context', 'program'], '    ', return_instance = True, init = 'CLProgram')}
+    return _createCLProgram(context, program)
 
 cdef CLKernel _createKernel(CLProgram program, bytes string):
 ${make_safe_create('cdef cl_kernel kernel = clCreateKernel(program._program, string, &errcode)', '    ')}
-${init_instance(['program', 'kernel'], '    ', return_instance = True, init = 'CLKernel')}
+    return _createCLKernel(program, kernel)
 
 cdef bytes _getBuildLog(CLProgram program, CLDevice device):
     cdef char log[10000]
@@ -258,15 +276,8 @@ cdef list _createKernelsInProgram(CLProgram program):
     cdef cl_kernel kernels[20]
     cdef cl_uint num_kernels
 ${make_safe_call('clCreateKernelsInProgram(program._program, 20, kernels, &num_kernels)', '    ')}
-    cdef list pykernels = []
-    cdef CLKernel instance
     cdef int i
-    for i in xrange(num_kernels):
-        instance = CLKernel.__new__(CLKernel)
-        instance._kernel = kernels[i]
-        instance._program = program
-        pykernels.append(instance)
-    return pykernels
+    return [_createCLKernel(program, kernels[i]) for i in xrange(num_kernels)]
 
 cdef void _setArgs(CLKernel kernel, tuple args) except *:
     if len(args) != len(kernel._targs):
@@ -304,12 +315,6 @@ cdef void _enqueueWaitForEvents(cl_command_queue queue, list events) except *:
         lst[i] = evt._event
 ${make_safe_call('clEnqueueWaitForEvents(queue, num_events, lst)', '    ')}
 
-
-cdef CLEvent _enqueueUnmapMemObject(cl_command_queue queue, cl_mem mem, void *ptr):
-    cdef cl_event event
-${make_safe_call('clEnqueueUnmapMemObject(queue, mem, ptr, 0, NULL, &event)', '    ')}
-${init_instance(['event'], '    ', return_instance = True, init = "CLEvent")}
-
 cdef void _build(CLProgram program, list options):
 ${make_safe_call('clBuildProgram(program._program, 0, NULL, NULL, NULL, NULL)', '    ')}
 
@@ -321,11 +326,6 @@ ${make_safe_call('clFlush(self._command_queue)', '        ')}
 
     def finish(self):
 ${make_safe_call('clFinish(self._command_queue)', '        ')}
-
-    def enqueueUnmapMemObject(self, CLMappedBuffer buffer):
-        cdef CLEvent event = _enqueueUnmapMemObject(self._command_queue, buffer._buffer._mem, buffer._address)
-        buffer._mapped = False
-        return event
 
     def enqueue(self, CLCommand cmd):
         return cmd.call(self)
@@ -345,29 +345,38 @@ ${make_dealloc("clReleaseProgram(self._program)")}
         _build(self, options)
         return self
 
-cdef class CLMappedBuffer(CLObject):
-${properties_repr(['address', 'size'])}
+cdef class CLMappedBuffer:
+    def __cinit__(self):
+        self._ready = False
+
     property address:
         def __get__(self):
             return <np.Py_intptr_t> self._address
     property __array_interface__:
         def __get__(self):
+            if not self._ready:
+                raise AttributeError ("Memory not Mapped")
             return { "shape" : (self._buffer.size,),
                      "typestr" : "|i1",
                      "data" : (<np.Py_intptr_t> self._address, False),
                      "version" : 3}
+    property mapped:
+        def __get__(self):
+            return self._ready
     property size:
         def __get__(self):
+            if not self._ready:
+                raise AttributeError ("Memory not Mapped")
             return self._buffer.size
+${properties_repr(['address', 'mapped'])}
 
     def __dealloc__(self):
-        if self._mapped:
-            self._command_queue.enqueueUnmapMemObject(self)
+        if self._ready:
+            print "Memory leak detected, YOU SHOULD MANUALLY UNMAP MAPPED MEMORY"
 
 
 cdef class CLDevice(CLObject):
 ${properties_getter("Device", "_device", device_properties)}
-${properties_repr(['name', 'type', 'vendor', 'driverVersion'])}
 
 cdef class CLPlatform(CLObject):
 ${properties_getter("Platform", "_platform", platform_properties)}
@@ -392,7 +401,7 @@ ${properties_repr(['shape'])}
 
 cdef class CLKernel(CLObject):
 ${properties_getter("Kernel", "_kernel", kernel_properties)}
-${properties_repr(['name', 'numArgs'])}
+${properties_repr(['name', 'numArgs', 'ready'])}
 ${make_dealloc("clReleaseKernel(self._kernel)")}
     property parameters:
         def __get__(self):
@@ -400,9 +409,18 @@ ${make_dealloc("clReleaseKernel(self._kernel)")}
 
         def __set__(self, tuple value):
             _setParameters(self, value)
+            self._ready = True
             self._targs = value
 
-    def setArgs(self, *args): _setArgs(self, args)
+    property ready:
+        def __get__(self):
+            return self._ready
+
+    def setArgs(self, *args):
+        if not self._ready:
+            raise AttributeError("Kernel is not ready : did you forget to type it")
+        _setArgs(self, args)
+
 
 
 cdef class CLEvent(CLObject):
@@ -410,8 +428,6 @@ ${make_dealloc("clReleaseEvent(self._event)")}
 ${properties_getter("Event", "_event", event_properties)}
 ${properties_getter("EventProfiling", "_event", profiling_properties)}
 ${properties_repr(['type', 'status'])}
-
-
 
 cdef class CLSampler(CLObject):
 ${make_dealloc("clReleaseSampler(self._sampler)")}
@@ -423,10 +439,10 @@ ${make_dealloc("clReleaseContext (self._context)")}
 ${properties_repr([])}
     def createBuffer(self, size_t size, cl_mem_flags flags = CL_MEM_READ_WRITE):
         return _createBuffer(self, size, flags)
-    def createImage2D(self, size_t width, size_t height, cl_channel_order order, cl_channel_type itype):
-        return _createImage2D(self, width, height, order, itype)
-    def createImage3D(self, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype):
-        return _createImage3D(self, width, height, depth, order, itype)
+    def createImage2D(self, size_t width, size_t height, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags = CL_MEM_READ_WRITE ):
+        return _createImage2D(self, width, height, order, itype, flags)
+    def createImage3D(self, size_t width, size_t height, size_t depth, cl_channel_order order, cl_channel_type itype, cl_mem_flags flags = CL_MEM_READ_WRITE):
+        return _createImage3D(self, width, height, depth, order, itype, flags)
     def createCommandQueue(self, CLDevice device, cl_command_queue_properties flags = <cl_command_queue_properties>0):
         return _createCommandQueue(self, device, flags)
     def createSampler(self, cl_bool normalized, cl_addressing_mode amode, cl_filter_mode fmode):
@@ -440,30 +456,34 @@ ${properties_repr([])}
 
 
 ${makesection("Module level API")}
-DEF MAX_PLATFORM_NUMBER = 15
 cpdef list getPlatforms():
-    cdef list pyplatforms = []
-    cdef cl_platform_id platforms[MAX_PLATFORM_NUMBER]
+    """
+    Obtain the list of platforms available.
+    """
+    cdef cl_platform_id platforms[15]
     cdef cl_uint num_platforms
-    cdef CLPlatform instance
     cdef int i
-${make_safe_call('clGetPlatformIDs(MAX_PLATFORM_NUMBER, platforms, &num_platforms)', '    ')}
-    for i in xrange(num_platforms):
-        instance = CLPlatform.__new__(CLPlatform)
-        instance._platform = platforms[i]
-        pyplatforms.append(instance)
-    return pyplatforms
+${make_safe_call('clGetPlatformIDs(15, platforms, &num_platforms)', '    ')}
+    return [_createCLPlatform(platforms[i]) for i in xrange(num_platforms)]
+
 
 cpdef CLContext createContext(list devices):
+    """
+    Creates an OpenCL context.
+    """
     cdef long num_devices = len(devices)
     cdef cl_device_id clDevices[100]
     cdef cl_context context
     for i from 0 <= i < min(num_devices, 100):
         clDevices[i] = (<CLDevice>devices[i])._device
 ${make_safe_create('context = clCreateContext(NULL, num_devices, clDevices, NULL, NULL, &errcode)', '    ')}
-${init_instance(['context', 'devices'], '    ', return_instance = True, init = 'CLContext')}
+    return _createCLContext(devices, context)
+
 
 cpdef waitForEvents(list events):
+    """
+    Waits on the host thread for commands identified by event objects in event_list to complet.
+    """
     cdef int num_events = len(events)
     cdef cl_event lst[100]
     cdef CLEvent evt
@@ -472,37 +492,15 @@ cpdef waitForEvents(list events):
         lst[i] = (<CLEvent>events[i])._event
 ${make_safe_call('clWaitForEvents(num_events, lst)', '    ')}
 
+
+
+
 <%def name="makesection(name)">
 #
 #
 #   ${name}
 #
 #
-</%def>
-
-<%def name="copyright()">
-# Copyright (c) 2010 Jean-Pascal Mercier
-#
-# Permission is hereby granted, free of charge, to any person
-# obtaining a copy of this software and associated documentation
-# files (the "Software"), to deal in the Software without
-# restriction, including without limitation the rights to use,
-# copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following
-# conditions:
-#
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-# OTHER DEALINGS IN THE SOFTWARE.
 </%def>
 
 <%def name="info_getter(name, fct_name, obj_type, info_type, return_types)">
@@ -556,17 +554,6 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
 <%repr_str += ">" %>\
     def __repr__(self):
         return '${repr_str}' % (${prop_str} )
-</%def>
-<%def name="init_instance(args, indentation, return_instance = False, init = None)">\
-%if init is not None:
-${indentation}cdef ${init} instance = ${init}.__new__(${init})
-%endif
-    %for a in args: 
-${indentation}instance._${a} = ${a}
-    %endfor
-    %if return_instance:
-${indentation}return instance\
-    %endif
 </%def>
 <%def name="make_dealloc(command)">\
     def __dealloc__(self):
