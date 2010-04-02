@@ -25,6 +25,6 @@ k1.parameters = (cycl.param_type.BUFFER_T, cycl.param_type.INT32_T)
 k1.setArgs(b, 10)
 cmd = cycl.CLNDRangeKernel(k1, global_work_size = ( 512 * 512, 1, 1), local_work_size = (256, 1, 1))
 cmd2 = cycl.CLReadBufferNDArray(bhost, b)
-q.enqueueCmd(cmd)
-q.enqueueCmd(cmd2)
+q.enqueue(cmd)
+q.enqueue(cmd2)
 
