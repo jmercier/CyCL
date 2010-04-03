@@ -223,15 +223,6 @@ param_converter_array[${len(param_types) + 1}].fct = from_CLSampler
 
 ${makesection("Helper functions")}
 
-${info_getter("getDeviceInfo","clGetDeviceInfo", "cl_device_id", "cl_device_info", device_properties)}
-${info_getter("getPlatformInfo","clGetPlatformInfo", "cl_platform_id", "cl_platform_info", platform_properties)}
-${info_getter("getBufferInfo","clGetMemObjectInfo", "cl_mem", "cl_mem_info", buffer_properties)}
-${info_getter("getImageInfo","clGetImageInfo", "cl_mem", "cl_image_info", image_properties)}
-${info_getter("getKernelInfo","clGetKernelInfo", "cl_kernel", "cl_kernel_info", kernel_properties)}
-${info_getter("getEventInfo","clGetEventInfo", "cl_event", "cl_event_info", event_properties)}
-${info_getter("getEventProfilingInfo","clGetEventProfilingInfo", "cl_event", "cl_profiling_info", profiling_properties)}
-${info_getter("getSamplerInfo","clGetSamplerInfo", "cl_sampler", "cl_sampler_info", sampler_properties)}
-
 cdef list _getDevices(cl_platform_id platform, cl_device_type dtype):
     cdef cl_device_id devices[10]
     cdef cl_uint num_devices
@@ -287,24 +278,14 @@ ${make_safe_call('clCreateKernelsInProgram(program._program, 20, kernels, &num_k
     cdef int i
     return [_createCLKernel(program, kernels[i]) for i in xrange(num_kernels)]
 
-cdef void _setArgs(CLKernel kernel, tuple args) except *:
-    if len(args) != len(kernel._targs):
-        raise AttributeError("Error")
-    cdef int i
-    cdef unsigned int index
-    cdef param p
-    cdef errcode
-    for i in xrange(len(args)):
-        index = kernel._targs[i]
-        p = param_converter_array[index].fct(args[i])
-        errcode = clSetKernelArg(kernel._kernel, i,param_converter_array[index].itemsize, &p)
-        if errcode < 0: raise CLError(error_translation_table[errcode])
-
 cdef void _setParameters(CLKernel kernel, tuple parameters) except *:
     cdef int i
     cdef unsigned int index
-    #cdef unsigned int num_args = len(value)
-    cdef cl_uint num_args = _getKernelInfo_cl_uint(kernel._kernel, CL_KERNEL_NUM_ARGS)
+    cdef cl_uint num_args
+    cdef cl_int errcode = clGetKernelInfo(kernel._kernel,
+                                          CL_KERNEL_NUM_ARGS,
+                                          sizeof(cl_uint), &num_args, NULL)
+    if errcode < 0: raise CLError(error_translation_table[errcode])
     if num_args != len(parameters):
         raise AttributeError("Number of args differ. got %d, expect %d" %\
                             (len(parameters), num_args))
@@ -384,10 +365,10 @@ ${properties_repr(['address', 'mapped'])}
 
 
 cdef class CLDevice(CLObject):
-${properties_getter("Device", "_device", device_properties)}
+${properties_getter2("clGetDeviceInfo", "_device", device_properties)}
 
 cdef class CLPlatform(CLObject):
-${properties_getter("Platform", "_platform", platform_properties)}
+${properties_getter2("clGetPlatformInfo", "_platform", platform_properties)}
 ${properties_repr(['name', 'vendor', 'version'])}
     def getDevices(self, cl_device_type dtype = 0xFFFFFFFF): return _getDevices(self._platform, dtype)
 
@@ -395,7 +376,7 @@ ${properties_repr(['name', 'vendor', 'version'])}
 
 cdef class CLBuffer(CLObject):
 ${make_dealloc("clReleaseMemObject(self._mem)")}
-${properties_getter("Buffer", "_mem", buffer_properties)}
+${properties_getter2("clGetMemObjectInfo", "_mem", buffer_properties)}
 ${properties_repr(['size', 'offset'])}
     property offset:
         def __get__(self):
@@ -403,14 +384,14 @@ ${properties_repr(['size', 'offset'])}
 
 
 cdef class CLImage(CLBuffer):
-${properties_getter("Image", "_mem", image_properties)}
+${properties_getter2("clGetImageInfo", "_mem", image_properties)}
 ${properties_repr(['shape'])}
 
 
 cdef class CLKernel(CLObject):
-${properties_getter("Kernel", "_kernel", kernel_properties)}
-${properties_repr(['name', 'numArgs', 'ready'])}
 ${make_dealloc("clReleaseKernel(self._kernel)")}
+${properties_getter2("clGetKernelInfo", "_kernel", kernel_properties)}
+${properties_repr(['name', 'numArgs', 'ready'])}
     property parameters:
         def __get__(self):
             return self._targs
@@ -426,21 +407,31 @@ ${make_dealloc("clReleaseKernel(self._kernel)")}
 
     def setArgs(self, *args):
         if not self._ready:
-            raise AttributeError("Kernel is not ready : did you forget to type it")
-        _setArgs(self, args)
+            raise AttributeError("Kernel is not ready : did you forget to TYPE it")
+        if len(args) != len(self._targs):
+            raise AttributeError("Error")
+        cdef unsigned int index
+        cdef param p
+        cdef cl_int errcode
+        for i from 0 <= i < len(args):
+            index = self._targs[i]
+            p = param_converter_array[index].fct(args[i])
+            errcode = clSetKernelArg(self._kernel, i,param_converter_array[index].itemsize, &p)
+            if errcode < 0: raise CLError(error_translation_table[errcode])
+
 
 
 
 cdef class CLEvent(CLObject):
 ${make_dealloc("clReleaseEvent(self._event)")}
-${properties_getter("Event", "_event", event_properties)}
-${properties_getter("EventProfiling", "_event", profiling_properties)}
+${properties_getter2("clGetEventInfo", "_event", event_properties)}
+${properties_getter2("clGetEventProfilingInfo", "_event", profiling_properties)}
 ${properties_repr(['type', 'status'])}
 
 cdef class CLSampler(CLObject):
 ${make_dealloc("clReleaseSampler(self._sampler)")}
-${properties_getter("Sampler", "_sampler", sampler_properties)}
 ${properties_repr(['normalized', 'filterMode', 'addressingMode'])}
+${properties_getter2("clGetSamplerInfo", "_sampler", sampler_properties)}
 
 cdef class CLContext(CLObject):
 ${make_dealloc("clReleaseContext (self._context)")}
@@ -549,6 +540,47 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
                                         ${pdefine})
         %endif
     %endfor
+%endfor
+</%def>
+
+<%def name="properties_getter2(fct_name, internal, properties_desc)">
+%for ptype in properties_desc:
+%for pname, pdefine in properties_desc[ptype]:
+    property ${pname}:
+        def __get__(self):
+            cdef size_t size
+            cdef cl_int errcode
+    %if isinstance(pdefine, tuple):
+<%ret_string = "" %>\
+        %for i, define in enumerate(pdefine):
+            cdef ${ptype} r_${i}
+            errcode = ${fct_name}(self.${internal},
+                                  ${pdefine},
+                                  sizeof(${ptype}), &r_${i}, &size)
+            if errcode < 0: raise CLError(error_translation_table[errcode])
+<%ret_string += "r_%d, " % i %>\
+        %endfor
+            return (${ret_string})
+
+    %else:
+            cdef ${ptype} result
+        %if ptype == "bytes":
+            cdef char char_result[256]
+            errcode = ${fct_name}(self.${internal},
+                                  ${pdefine},
+                                  256 * sizeof(char), char_result, &size)
+            if errcode < 0: raise CLError(error_translation_table[errcode])
+            result = char_result[:size]
+        %else:
+            errcode = ${fct_name}(self.${internal},
+                                  ${pdefine},
+                                  sizeof(${ptype}), &result, &size)
+            if errcode < 0: raise CLError(error_translation_table[errcode])
+        %endif
+            return result
+    %endif
+
+%endfor
 %endfor
 </%def>
 
