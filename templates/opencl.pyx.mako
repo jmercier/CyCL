@@ -81,78 +81,86 @@ error_types = ['CL_SUCCESS',
                'CL_INVALID_MIP_LEVEL',
                'CL_INVALID_GLOBAL_WORK_SIZE']
 
-device_properties = { 'bytes'  :  [('driverVersion',            'CL_DRIVER_VERSION'),
-                                   ('vendor',                   'CL_DEVICE_VERSION'),
-                                   ('version',                  'CL_DEVICE_VENDOR',),
-                                   ('profile',                  'CL_DRIVER_PROFILE'),
-                                   ('name',                     'CL_DEVICE_NAME'),
-                                   ('extensions',               'CL_DEVICE_EXTENSIONS')],
-                     'cl_uint'  : [('addressBits',              'CL_DEVICE_ADDRESS_BITS'),
-                                   ('vendorId',                 'CL_DEVICE_VENDOR_ID'),
-                                   ('maxClockFrequency',        'CL_DEVICE_MAX_CLOCK_FREQUENCY'),
-                                   ('maxComputeUnits',           'CL_DEVICE_MAX_COMPUTE_UNITS'),
-                                   ('maxWorkItemDimensions',    'CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS'),
-                                   ('maxConstantArgs',          'CL_DEVICE_MAX_CONSTANT_ARGS'),
-                                   ('minDataTypeAlignSize',      'CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE'),
-                                   ('maxWriteImageArgs',        'CL_DEVICE_MAX_WRITE_IMAGE_ARGS'),
-                                   ('memBaseAddrAlign',         'CL_DEVICE_MEM_BASE_ADDR_ALIGN'),
-                                   ('preferredVectorWidthChar', 'CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR'),
-                                   ('preferredVectorWidthShort','CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT'),
-                                   ('preferredVectorWidthInt',  'CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT'),
-                                   #('maxWorkItemSizes',         'CL_DEVICE_MAX_WORK_ITEM_SIZES'),
-                                   ('preferredVectorWidthLong', 'CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG'),
-                                   ('preferredVectorWidthFloat','CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT'),
-                                   ('preferredVectorWidthDouble','CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE')],
-                     'size_t'   : [('maxWorkGroupSize',         'CL_DEVICE_MAX_WORK_GROUP_SIZE'),
-                                   ('profilingTimerResolution', 'CL_DEVICE_PROFILING_TIMER_RESOLUTION'),
-                                   ('image2DMaxSize',           ('CL_DEVICE_IMAGE2D_MAX_HEIGHT',
-                                                                 'CL_DEVICE_IMAGE2D_MAX_WIDTH')),
-                                   ('image3DMaxSize',           ('CL_DEVICE_IMAGE3D_MAX_HEIGHT',
-                                                                 'CL_DEVICE_IMAGE3D_MAX_WIDTH',
-                                                                 'CL_DEVICE_IMAGE3D_MAX_DEPTH'))],
+device_properties = \
+        { 'bytes'    : [('driverVersion',                'CL_DRIVER_VERSION'),
+                        ('vendor',                       'CL_DEVICE_VERSION'),
+                        ('version',                      'CL_DEVICE_VENDOR',),
+                        ('profile',                      'CL_DRIVER_PROFILE'),
+                        ('name',                         'CL_DEVICE_NAME'),
+                        ('extensions',                   'CL_DEVICE_EXTENSIONS')],
+          'cl_uint'  : [('addressBits',                  'CL_DEVICE_ADDRESS_BITS'),
+                        ('vendorId',                     'CL_DEVICE_VENDOR_ID'),
+                        ('maxClockFrequency',            'CL_DEVICE_MAX_CLOCK_FREQUENCY'),
+                        ('maxComputeUnits',              'CL_DEVICE_MAX_COMPUTE_UNITS'),
+                        ('maxWorkItemDimensions',        'CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS'),
+                        ('maxConstantArgs',              'CL_DEVICE_MAX_CONSTANT_ARGS'),
+                        ('minDataTypeAlignSize',         'CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE'),
+                        ('maxWriteImageArgs',            'CL_DEVICE_MAX_WRITE_IMAGE_ARGS'),
+                        ('memBaseAddrAlign',             'CL_DEVICE_MEM_BASE_ADDR_ALIGN'),
+                        ('preferredVectorWidthChar',     'CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR'),
+                        ('preferredVectorWidthShort',    'CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT'),
+                        ('preferredVectorWidthInt',      'CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT'),
+                        #('maxWorkItemSizes',            'CL_DEVICE_MAX_WORK_ITEM_SIZES'),
+                        ('preferredVectorWidthLong',     'CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG'),
+                        ('preferredVectorWidthFloat',    'CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT'),
+                        ('preferredVectorWidthDouble',   'CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE')],
+          'size_t'   : [('maxWorkGroupSize',             'CL_DEVICE_MAX_WORK_GROUP_SIZE'),
+                        ('profilingTimerResolution',     'CL_DEVICE_PROFILING_TIMER_RESOLUTION'),
+                        ('image2DMaxSize',               ('CL_DEVICE_IMAGE2D_MAX_HEIGHT',
+                                                          'CL_DEVICE_IMAGE2D_MAX_WIDTH')),
+                        ('image3DMaxSize',               ('CL_DEVICE_IMAGE3D_MAX_HEIGHT',
+                                                          'CL_DEVICE_IMAGE3D_MAX_WIDTH',
+                                                          'CL_DEVICE_IMAGE3D_MAX_DEPTH'))],
 
-                     'cl_ulong' : [('globalMemSize',            'CL_DEVICE_GLOBAL_MEM_SIZE'),
-                                   ('globalMemCacheSize',       'CL_DEVICE_GLOBAL_MEM_CACHE_SIZE'),
-                                   ('globalMemCachelineSize',   'CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE'),
-                                   ('maxConstantBufferSize',    'CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE'),
-                                   ('maxMemAllocSize',          'CL_DEVICE_MAX_MEM_ALLOC_SIZE'),
-                                   ('type',                     'CL_DEVICE_TYPE')],
-                     'cl_bool'  : [('imageSupport',             'CL_DEVICE_IMAGE_SUPPORT'),
-                                   ('ECCSupport',            'CL_DEVICE_ERROR_CORRECTION_SUPPORT'),
-                                   ('endianLittle',          'CL_DEVICE_ENDIAN_LITTLE'),
-                                   ('compilerAvailable',     'CL_DEVICE_COMPILER_AVAILABLE'),
-                                   ('available',             'CL_DEVICE_AVAILABLE')]}
+          'cl_ulong' : [('globalMemSize',                'CL_DEVICE_GLOBAL_MEM_SIZE'),
+                        ('globalMemCacheSize',           'CL_DEVICE_GLOBAL_MEM_CACHE_SIZE'),
+                        ('globalMemCachelineSize',       'CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE'),
+                        ('maxConstantBufferSize',        'CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE'),
+                        ('maxMemAllocSize',              'CL_DEVICE_MAX_MEM_ALLOC_SIZE'),
+                        ('type',                         'CL_DEVICE_TYPE')],
+          'cl_bool'  : [('imageSupport',                 'CL_DEVICE_IMAGE_SUPPORT'),
+                        ('ECCSupport',                   'CL_DEVICE_ERROR_CORRECTION_SUPPORT'),
+                        ('endianLittle',                 'CL_DEVICE_ENDIAN_LITTLE'),
+                        ('compilerAvailable',            'CL_DEVICE_COMPILER_AVAILABLE'),
+                        ('available',                    'CL_DEVICE_AVAILABLE')]}
 
 
-platform_properties = { 'bytes'  : [('version',             'CL_PLATFORM_VERSION'),
-                                    ('name',                'CL_PLATFORM_NAME'),
-                                    ('vendor',              'CL_PLATFORM_VENDOR'),
-                                    ('extensions',          'CL_PLATFORM_EXTENSIONS'),
-                                    ('profile',             'CL_PLATFORM_PROFILE')]}
+platform_properties = \
+        { 'bytes'    : [('version',                      'CL_PLATFORM_VERSION'),
+                        ('name',                         'CL_PLATFORM_NAME'),
+                        ('vendor',                       'CL_PLATFORM_VENDOR'),
+                        ('extensions',                   'CL_PLATFORM_EXTENSIONS'),
+                        ('profile',                      'CL_PLATFORM_PROFILE')]}
 
-buffer_properties = { 'size_t'   : [('size',                'CL_MEM_SIZE')]}
+buffer_properties = \
+        { 'size_t'   : [('size',                         'CL_MEM_SIZE')]}
 
-image_properties = { 'size_t'  : [('slicePitch',            'CL_IMAGE_SLICE_PITCH'),
-                                  ('elementSize',           'CL_IMAGE_ELEMENT_SIZE'),
-                                  ('shape',                 ('CL_IMAGE_WIDTH',
-                                                             'CL_IMAGE_HEIGHT',
-                                                             'CL_IMAGE_DEPTH')),
-                                  ('rowPitch',              'CL_IMAGE_ROW_PITCH')]}
+image_properties = \
+        { 'size_t'   : [('slicePitch',                   'CL_IMAGE_SLICE_PITCH'),
+                        ('elementSize',                  'CL_IMAGE_ELEMENT_SIZE'),
+                        ('shape',                       ('CL_IMAGE_WIDTH',
+                                                         'CL_IMAGE_HEIGHT',
+                                                         'CL_IMAGE_DEPTH')),
+                        ('rowPitch',                     'CL_IMAGE_ROW_PITCH')]}
 
-kernel_properties = { 'bytes'   : [('name', 'CL_KERNEL_FUNCTION_NAME')],
-                      'cl_uint' : [('numArgs', 'CL_KERNEL_NUM_ARGS')]}
+kernel_properties = \
+        { 'bytes'    : [('name',                         'CL_KERNEL_FUNCTION_NAME')],
+          'cl_uint'  : [('numArgs',                      'CL_KERNEL_NUM_ARGS')]}
 
-event_properties = { 'cl_int'     : [('type', 'CL_EVENT_COMMAND_TYPE'),
-                                     ('status', 'CL_EVENT_COMMAND_EXECUTION_STATUS')]}
+event_properties = \
+        { 'cl_int'   : [('type',                         'CL_EVENT_COMMAND_TYPE'),
+                        ('status',                       'CL_EVENT_COMMAND_EXECUTION_STATUS')]}
 
-profiling_properties = { 'cl_ulong'   : [('profilingQueued', 'CL_PROFILING_COMMAND_QUEUED'),
-                                               ('profilingSubmit', 'CL_PROFILING_COMMAND_SUBMIT'),
-                                               ('profilingStart',  'CL_PROFILING_COMMAND_START'),
-                                               ('profilingEnd',    'CL_PROFILING_COMMAND_END')]}
+profiling_properties = \
+        { 'cl_ulong' : [('profilingQueued',              'CL_PROFILING_COMMAND_QUEUED'),
+                        ('profilingSubmit',              'CL_PROFILING_COMMAND_SUBMIT'),
+                        ('profilingStart',               'CL_PROFILING_COMMAND_START'),
+                        ('profilingEnd',                 'CL_PROFILING_COMMAND_END')]}
 
-sampler_properties = { 'cl_uint'    : [('normalized', 'CL_SAMPLER_NORMALIZED_COORDS'),
-                                       ('filterMode', 'CL_SAMPLER_FILTER_MODE'),
-                                       ('addressingMode', 'CL_SAMPLER_ADDRESSING_MODE')]}
+sampler_properties = \
+        { 'cl_uint'  : [('normalized',                   'CL_SAMPLER_NORMALIZED_COORDS'),
+                                                        ('filterMode', 'CL_SAMPLER_FILTER_MODE'),
+                                                        ('addressingMode', 'CL_SAMPLER_ADDRESSING_MODE')]}
 
 %>\
 cimport opencl

@@ -1,3 +1,26 @@
+# Copyright (c) 2010 Jean-Pascal Mercier
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
 
 cdef class CLCommand:
     cdef object call(self, CLCommandQueue queue):
@@ -46,7 +69,6 @@ cdef class CLReadBufferNDArray(CLCommand):
         if errcode < 0: raise translateError(errcode)
         return _createCLEvent(event, queue)
 
-
 cdef class CLNDRangeKernel(CLCommand):
     def __cinit__(self, CLKernel kernel, tuple global_work_size = (1,1,1), tuple local_work_size = (1,1,1)):
         self._kernel = kernel
@@ -70,7 +92,6 @@ cdef class CLNDRangeKernel(CLCommand):
         if errcode < 0: raise translateError(errcode)
         return _createCLEvent(event, queue)
 
-
 cdef class CLWriteBufferNDArray(CLCommand):
     def __cinit__(self, CLBuffer dst, np.ndarray src, cl_bool blocking = True):
         self._src = src
@@ -93,7 +114,6 @@ cdef class CLWriteBufferNDArray(CLCommand):
                                       &event)
         if errcode < 0: raise Exception("Excep")
         return _createCLEvent(event, queue)
-
 
 cdef class CLUnmapBuffer(CLCommand):
     def __cinit__(self, CLMappedBuffer buffer):
@@ -175,13 +195,11 @@ cdef class CLWriteImageNDArray(CLCommand):
         if errcode < 0: raise translateError(errcode)
         return _createCLEvent(event, queue)
 
-
 cdef class CLBarrier(CLCommand):
     cdef object call(self, CLCommandQueue queue):
         cdef cl_int errcode
         errcode = clEnqueueBarrier(queue._command_queue)
         if errcode < 0: raise translateError(errcode)
-
 
 cdef class CLMarker(CLCommand):
     cdef object call(self, CLCommandQueue queue):
@@ -213,6 +231,3 @@ cdef class CLMapBuffer(CLCommand):
         self._dst._buffer = self._src
         self._dst._ready = True
         return _createCLEvent(event, queue)
-
-
-
