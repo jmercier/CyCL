@@ -2,12 +2,13 @@
 
 import os
 from mako.template import Template
+from mako.lookup import TemplateLookup
+mylookup = TemplateLookup(directories=['./'])
 
 print "makoing template"
-for file in ['opencl.pyx.mako']:
+for file in ['opencl.pyx', 'command.pyx']:
     print file
-    with open(os.path.join("templates", file)) as input:
-        t = Template(input.read()).render()
-    with open(os.path.join("src/%s" % (file[:-5])), 'w') as output:
-        output.write(t)
+    t = Template(filename = os.path.join("templates", file + '.mako'), lookup = mylookup)
+    with open(os.path.join("src/%s" % file), 'w') as output:
+        output.write(t.render())
 
