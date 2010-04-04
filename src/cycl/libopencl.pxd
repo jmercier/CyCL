@@ -342,20 +342,20 @@ cdef extern from "CL/cl.h":
                                       void *,
                                       size_t *) nogil
 
-        #cdef cl_context clCreateContext(cl_context_properties *,
-                                        #cl_uint,
-                                        #cl_device_id *,
-                                        #void *pfn_notify (char *, void *, size_t, void *),
-                                        #void *,
-                                        #cl_int *)
-
-        # Context API
         cdef cl_context clCreateContext(cl_context_properties *,
                                         cl_uint,
                                         cl_device_id *,
+                                        void (*pfn_notify) (char *, void *, size_t, void *),
                                         void *,
-                                        void *,
-                                        cl_int *) nogil
+                                        cl_int *)
+
+        # Context API
+        #cdef cl_context clCreateContext(cl_context_properties *,
+                                        #cl_uint,
+                                        #cl_device_id *,
+                                        #void *,
+                                        #void *,
+                                        #cl_int *) nogil
 
         cdef cl_int clReleaseContext(cl_context) nogil
 
@@ -410,18 +410,11 @@ cdef extern from "CL/cl.h":
 
         cdef cl_int clReleaseProgram(cl_program) nogil
 
-        #cdef cl_int clBuildProgram(cl_program,
-                                   #cl_uint,
-                                   #cl_device_id *,
-                                   #char *,
-                                   #(*pfn_notify)(cl_program, void *user_data),
-                                   #void *) nogil
-
         cdef cl_int clBuildProgram(cl_program,
                                    cl_uint,
                                    cl_device_id *,
                                    char *,
-                                   void *,
+                                   void (*pfn_notify)(cl_program, void *user_data),
                                    void *) nogil
 
         cdef cl_int clCreateKernelsInProgram(cl_program,
