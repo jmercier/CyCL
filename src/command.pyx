@@ -1,3 +1,4 @@
+
 # Copyright (c) 2010 Jean-Pascal Mercier
 #
 # Permission is hereby granted, free of charge, to any person
