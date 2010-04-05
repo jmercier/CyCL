@@ -9,9 +9,7 @@ param_types = ['char', 'uchar',
                'half',
                'float',
                'double',
-               'bool',
-               #'float128' # UNTIL WARNING IN GCC
-              ];
+               'bool'];
 
 defines_types = { 'memory_flag' :  ['CL_MEM_READ_WRITE',
                                     'CL_MEM_WRITE_ONLY',

@@ -2,6 +2,9 @@
 ${copyright()}
 
 cdef class CLCopyBuffer(CLCommand):
+    """
+    This command copy a device buffer to another device buffer
+    """
     def __cinit__(self, CLBuffer dst, CLBuffer src):
         self._src = src
         self._dst = dst
@@ -22,6 +25,10 @@ cdef class CLCopyBuffer(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLReadBufferNDArray(CLCommand):
+    """
+    This command copy a device buffer to a buffer pointed by
+    a numpy array
+    """
     def __cinit__(self, np.ndarray dst, CLBuffer src, cl_bool blocking = True):
         self._src = src
         self._dst = dst
@@ -45,7 +52,13 @@ cdef class CLReadBufferNDArray(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLNDRangeKernel(CLCommand):
-    def __cinit__(self, CLKernel kernel, tuple global_work_size = (1,1,1), tuple local_work_size = (1,1,1)):
+    """
+    This command enqueue the execution of a kernel on a device
+    with a global and a local working size
+    """
+    def __cinit__(self, CLKernel kernel,
+                  tuple global_work_size = (1,1,1),
+                  tuple local_work_size = (1,1,1)):
         self._kernel = kernel
         self._gws[0] = global_work_size[0]
         self._gws[1] = global_work_size[1]
@@ -68,6 +81,10 @@ cdef class CLNDRangeKernel(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLWriteBufferNDArray(CLCommand):
+    """
+    This command enqueue the copy of a local memory pointed by a numpy
+    array to a device memory buffer
+    """
     def __cinit__(self, CLBuffer dst, np.ndarray src, cl_bool blocking = True):
         self._src = src
         self._dst = dst
@@ -91,6 +108,10 @@ cdef class CLWriteBufferNDArray(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLUnmapBuffer(CLCommand):
+    """
+    This command enqueue the unmapping of a buffer from the device
+    memory to the Host memory
+    """
     def __cinit__(self, CLMappedBuffer buffer):
         self._dst = buffer
 
@@ -139,6 +160,7 @@ cdef class CLReadImageNDArray(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLWriteImageNDArray(CLCommand):
+
     def __cinit__(self, CLImage dst, np.ndarray src, cl_bool blocking = True):
             self._dst = dst
             self._src = src
@@ -171,12 +193,18 @@ cdef class CLWriteImageNDArray(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLBarrier(CLCommand):
+    """
+    A synchronization point that enqueues a barrier operation.
+    """
     cdef object call(self, CLCommandQueue queue):
         cdef cl_int errcode
         errcode = clEnqueueBarrier(queue._command_queue)
         if errcode < 0: raise translateError(errcode)
 
 cdef class CLMarker(CLCommand):
+    """
+    Enqueues a marker command.
+    """
     cdef object call(self, CLCommandQueue queue):
         cdef cl_event event
         cdef cl_int errcode
@@ -185,6 +213,9 @@ cdef class CLMarker(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLMapBuffer(CLCommand):
+    """
+    This command map a Device Buffer to the Host memory buffer
+    """
     def __cinit__(self, CLMappedBuffer dst, CLBuffer src, cl_map_flags flags, cl_bool blocking = True):
         self._flags = flags
         self._blocking = True
