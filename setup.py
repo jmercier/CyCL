@@ -20,7 +20,7 @@ cycl_srcs = ['cycl']
 setup(
     cmdclass = {'build_ext': build_ext},
     ext_modules = extensions,
-    packages = ['cycl', 'cycl/defines'],
+    packages = ['cycl'],
     name = 'CyCL',
     version = '0.0.1',
     description = "Cython Bindings for OpenCL",
