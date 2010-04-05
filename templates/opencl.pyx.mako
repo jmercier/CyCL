@@ -12,6 +12,76 @@ param_types = ['byte', 'ubyte',
                #'float128' # UNTIL WARNING IN GCC
               ];
 
+defines_types = { 'memory_flag' :  ['CL_MEM_READ_WRITE',
+                                    'CL_MEM_WRITE_ONLY',
+                                    'CL_MEM_READ_ONLY',
+                                    'CL_MEM_USE_HOST_PTR',
+                                    'CL_MEM_ALLOC_HOST_PTR',
+                                    'CL_MEM_COPY_HOST_PTR'],
+                 'filter_mode' :   ['CL_FILTER_NEAREST',
+                                    'CL_FILTER_LINEAR'],
+                 'event_status':   ['CL_COMPLETE',
+                                    'CL_RUNNING',
+                                    'CL_SUBMITTED',
+                                    'CL_QUEUED'],
+                 'device_type' :   ['CL_DEVICE_TYPE_DEFAULT',
+                                    'CL_DEVICE_TYPE_CPU',
+                                    'CL_DEVICE_TYPE_GPU',
+                                    'CL_DEVICE_TYPE_ACCELERATOR',
+                                    'CL_DEVICE_TYPE_ALL'],
+                 'channel_type':   ['CL_SNORM_INT8',
+                                    'CL_SNORM_INT16',
+                                    'CL_UNORM_INT8',
+                                    'CL_UNORM_INT16',
+                                    'CL_UNORM_SHORT_565',
+                                    'CL_UNORM_SHORT_555',
+                                    'CL_UNORM_INT_101010',
+                                    'CL_SIGNED_INT8',
+                                    'CL_SIGNED_INT16',
+                                    'CL_SIGNED_INT32',
+                                    'CL_UNSIGNED_INT8',
+                                    'CL_UNSIGNED_INT16',
+                                    'CL_UNSIGNED_INT32',
+                                    'CL_HALF_FLOAT',
+                                    'CL_FLOAT' ],
+                 'channel_order':  ['CL_R',
+                                    'CL_A',
+                                    'CL_RG',
+                                    'CL_RA',
+                                    'CL_RGB',
+                                    'CL_RGBA',
+                                    'CL_BGRA',
+                                    'CL_ARGB',
+                                    'CL_INTENSITY',
+                                    'CL_LUMINANCE'],
+                 'addressing_mode':['CL_ADDRESS_NONE',
+                                    'CL_ADDRESS_CLAMP_TO_EDGE',
+                                    'CL_ADDRESS_CLAMP',
+                                    'CL_ADDRESS_REPEAT'],
+                 'command_type'  : ['CL_COMMAND_NDRANGE_KERNEL',
+                                    'CL_COMMAND_TASK',
+                                    'CL_COMMAND_NATIVE_KERNEL',
+                                    'CL_COMMAND_READ_BUFFER',
+                                    'CL_COMMAND_WRITE_BUFFER',
+                                    'CL_COMMAND_COPY_BUFFER',
+                                    'CL_COMMAND_READ_IMAGE',
+                                    'CL_COMMAND_WRITE_IMAGE',
+                                    'CL_COMMAND_COPY_IMAGE',
+                                    'CL_COMMAND_COPY_IMAGE_TO_BUFFER',
+                                    'CL_COMMAND_COPY_BUFFER_TO_IMAGE',
+                                    'CL_COMMAND_MAP_BUFFER',
+                                    'CL_COMMAND_MAP_IMAGE',
+                                    'CL_COMMAND_UNMAP_MEM_OBJECT',
+                                    'CL_COMMAND_MARKER',
+                                    'CL_COMMAND_ACQUIRE_GL_OBJECTS',
+                                    'CL_COMMAND_RELEASE_GL_OBJECTS'],
+                'command_queue_flag' : ['CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE',
+                                        'CL_QUEUE_PROFILING_ENABLE']
+
+                }
+
+
+
 
 error_types = ['CL_SUCCESS',
                'CL_DEVICE_NOT_FOUND',
@@ -65,7 +135,7 @@ device_properties = \
         { 'bytes'    : [('driverVersion',                'CL_DRIVER_VERSION'),
                         ('vendor',                       'CL_DEVICE_VERSION'),
                         ('version',                      'CL_DEVICE_VENDOR',),
-                        ('profile',                      'CL_DRIVER_PROFILE'),
+                        ('profile',                      'CL_DEVICE_PROFILE'),
                         ('name',                         'CL_DEVICE_NAME'),
                         ('extensions',                   'CL_DEVICE_EXTENSIONS')],
           'cl_uint'  : [('addressBits',                  'CL_DEVICE_ADDRESS_BITS'),
@@ -149,13 +219,12 @@ from command cimport *
 
 from opencl cimport *
 
-from defines import *
-
 cdef dict error_translation_table = {
 %for e in error_types:
         ${e + ' ' * (40 - len(e))} : "${e}",
 %endfor
 }
+
 
 cdef CLError translateError(cl_int errcode):
     return CLError(error_translation_table[errcode])
@@ -174,7 +243,8 @@ cdef struct ptype:
     size_t                  itemsize
     param_converter_fct     fct
 
-cdef ptype param_converter_array[${len(param_types)} + 2]
+DEF MAX_ARG_TRANSLATION = ${len(param_types) + 2}
+cdef ptype param_converter_array[MAX_ARG_TRANSLATION]
 
 %for i, t in enumerate(param_types):
 cdef param from_${t}(object val) except *:
@@ -200,6 +270,20 @@ cdef param from_CLSampler(object val) except *:
     return p
 param_converter_array[${len(param_types) + 1}].itemsize = sizeof(cl_sampler)
 param_converter_array[${len(param_types) + 1}].fct = from_CLSampler
+
+class parameter_type(CLObject):
+%for i, t in enumerate(param_types + ['MEM', 'SAMPLER']):
+    ${t.upper()}_TYPE ${' ' * (12 - len(t))} = ${i}
+%endfor
+    IMAGE_TYPE         = MEM_TYPE
+
+%for dtype in defines_types:
+class ${dtype}(CLObject):
+%for f in defines_types[dtype]:
+    ${f[3:]} ${' ' * (35 - len(f))} = ${f}
+%endfor
+
+%endfor
 
 
 ${makesection("Classes")}
@@ -295,6 +379,7 @@ cdef class CLMappedBuffer:
 
 cdef class CLDevice(CLObject):
     ${properties_getter2("clGetDeviceInfo", "_device", device_properties)}
+    ${properties_repr(['name', 'type', 'version'])}
 
 
 cdef class CLPlatform(CLObject):
@@ -341,7 +426,7 @@ cdef class CLKernel(CLObject):
             if errcode < 0: raise CLError(error_translation_table[errcode])
             for i from 0 <= i < num_args:
                 index = value[i]
-                if index >= 13:
+                if index >= MAX_ARG_TRANSLATION:
                     raise AttributeError("Unknown Type")
             self._ready = True
             self._targs = value
@@ -356,11 +441,13 @@ cdef class CLKernel(CLObject):
         cdef param p
         cdef cl_int errcode
         if not self._ready: raise AttributeError("Kernel is not ready : did you forget to TYPE it")
-        if len(args) != len(self._targs): raise AttributeError("Error")
+        if len(args) != len(self._targs): raise AttributeError("Number Mismatch")
         for i from 0 <= i < len(args):
             index = self._targs[i]
             p = param_converter_array[index].fct(args[i])
-            errcode = clSetKernelArg(self._kernel, i,param_converter_array[index].itemsize, &p)
+            errcode = clSetKernelArg(self._kernel,
+                                     i,param_converter_array[index].itemsize,
+                                     &p)
             if errcode < 0: raise CLError(error_translation_table[errcode])
 
 
@@ -378,12 +465,17 @@ cdef class CLSampler(CLObject):
 
 
 cdef class CLContext(CLObject):
+    """
+    This object represent a CLContext.
+    """
     ${make_dealloc("clReleaseContext (self._context)")}
-    ${properties_repr([])}
+    ${properties_repr(['devices'])}
     def createBuffer(self, size_t size, cl_mem_flags flags = CL_MEM_READ_WRITE):
         cdef cl_uint offset = 0
         cdef cl_int errcode
-        cdef cl_mem mem = clCreateBuffer(self._context, flags, size, NULL, &errcode)
+        cdef cl_mem mem = clCreateBuffer(self._context,
+                                         flags, size,
+                                         NULL, &errcode)
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return _createCLBuffer(mem, self, offset)
 
@@ -410,7 +502,7 @@ cdef class CLContext(CLObject):
         return _createCLImage(mem, self, 0)
 
     def createCommandQueue(self, CLDevice device,
-                        cl_command_queue_properties flags = <cl_command_queue_properties>0):
+                           cl_command_queue_properties flags = <cl_command_queue_properties>0):
         cdef cl_int errcode
         cdef cl_command_queue queue = clCreateCommandQueue(self._context,
                                                            device._device,
@@ -471,7 +563,8 @@ cpdef CLContext createContext(list devices):
 
 cpdef waitForEvents(list events):
     """
-    Waits on the host thread for commands identified by event objects in event_list to complet.
+    Waits on the host thread for commands identified by event objects in
+    event_list to complet.
     """
     cdef int num_events = len(events)
     cdef cl_event lst[100]

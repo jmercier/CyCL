@@ -27,8 +27,6 @@ from command cimport *
 
 from opencl cimport *
 
-from defines import *
-
 cdef dict error_translation_table = {
         CL_SUCCESS                               : "CL_SUCCESS",
         CL_DEVICE_NOT_FOUND                      : "CL_DEVICE_NOT_FOUND",
@@ -79,6 +77,7 @@ cdef dict error_translation_table = {
         CL_INVALID_GLOBAL_WORK_SIZE              : "CL_INVALID_GLOBAL_WORK_SIZE",
 }
 
+
 cdef CLError translateError(cl_int errcode):
     return CLError(error_translation_table[errcode])
 
@@ -110,7 +109,8 @@ cdef struct ptype:
     size_t                  itemsize
     param_converter_fct     fct
 
-cdef ptype param_converter_array[11 + 2]
+DEF MAX_ARG_TRANSLATION = 13
+cdef ptype param_converter_array[MAX_ARG_TRANSLATION]
 
 cdef param from_byte(object val) except *:
     cdef param p
@@ -204,6 +204,106 @@ cdef param from_CLSampler(object val) except *:
     return p
 param_converter_array[12].itemsize = sizeof(cl_sampler)
 param_converter_array[12].fct = from_CLSampler
+
+class parameter_type(CLObject):
+    BYTE_TYPE          = 0
+    UBYTE_TYPE         = 1
+    SHORT_TYPE         = 2
+    USHORT_TYPE        = 3
+    INT32_TYPE         = 4
+    UINT32_TYPE        = 5
+    INT64_TYPE         = 6
+    UINT64_TYPE        = 7
+    INTP_TYPE          = 8
+    FLOAT32_TYPE       = 9
+    FLOAT64_TYPE       = 10
+    MEM_TYPE           = 11
+    SAMPLER_TYPE       = 12
+    IMAGE_TYPE         = MEM_TYPE
+
+class channel_type(CLObject):
+    SNORM_INT8                        = CL_SNORM_INT8
+    SNORM_INT16                       = CL_SNORM_INT16
+    UNORM_INT8                        = CL_UNORM_INT8
+    UNORM_INT16                       = CL_UNORM_INT16
+    UNORM_SHORT_565                   = CL_UNORM_SHORT_565
+    UNORM_SHORT_555                   = CL_UNORM_SHORT_555
+    UNORM_INT_101010                  = CL_UNORM_INT_101010
+    SIGNED_INT8                       = CL_SIGNED_INT8
+    SIGNED_INT16                      = CL_SIGNED_INT16
+    SIGNED_INT32                      = CL_SIGNED_INT32
+    UNSIGNED_INT8                     = CL_UNSIGNED_INT8
+    UNSIGNED_INT16                    = CL_UNSIGNED_INT16
+    UNSIGNED_INT32                    = CL_UNSIGNED_INT32
+    HALF_FLOAT                        = CL_HALF_FLOAT
+    FLOAT                             = CL_FLOAT
+
+class memory_flag(CLObject):
+    MEM_READ_WRITE                    = CL_MEM_READ_WRITE
+    MEM_WRITE_ONLY                    = CL_MEM_WRITE_ONLY
+    MEM_READ_ONLY                     = CL_MEM_READ_ONLY
+    MEM_USE_HOST_PTR                  = CL_MEM_USE_HOST_PTR
+    MEM_ALLOC_HOST_PTR                = CL_MEM_ALLOC_HOST_PTR
+    MEM_COPY_HOST_PTR                 = CL_MEM_COPY_HOST_PTR
+
+class command_queue_flag(CLObject):
+    QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE  = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+    QUEUE_PROFILING_ENABLE            = CL_QUEUE_PROFILING_ENABLE
+
+class addressing_mode(CLObject):
+    ADDRESS_NONE                      = CL_ADDRESS_NONE
+    ADDRESS_CLAMP_TO_EDGE             = CL_ADDRESS_CLAMP_TO_EDGE
+    ADDRESS_CLAMP                     = CL_ADDRESS_CLAMP
+    ADDRESS_REPEAT                    = CL_ADDRESS_REPEAT
+
+class device_type(CLObject):
+    DEVICE_TYPE_DEFAULT               = CL_DEVICE_TYPE_DEFAULT
+    DEVICE_TYPE_CPU                   = CL_DEVICE_TYPE_CPU
+    DEVICE_TYPE_GPU                   = CL_DEVICE_TYPE_GPU
+    DEVICE_TYPE_ACCELERATOR           = CL_DEVICE_TYPE_ACCELERATOR
+    DEVICE_TYPE_ALL                   = CL_DEVICE_TYPE_ALL
+
+class channel_order(CLObject):
+    R                                 = CL_R
+    A                                 = CL_A
+    RG                                = CL_RG
+    RA                                = CL_RA
+    RGB                               = CL_RGB
+    RGBA                              = CL_RGBA
+    BGRA                              = CL_BGRA
+    ARGB                              = CL_ARGB
+    INTENSITY                         = CL_INTENSITY
+    LUMINANCE                         = CL_LUMINANCE
+
+class event_status(CLObject):
+    COMPLETE                          = CL_COMPLETE
+    RUNNING                           = CL_RUNNING
+    SUBMITTED                         = CL_SUBMITTED
+    QUEUED                            = CL_QUEUED
+
+class command_type(CLObject):
+    COMMAND_NDRANGE_KERNEL            = CL_COMMAND_NDRANGE_KERNEL
+    COMMAND_TASK                      = CL_COMMAND_TASK
+    COMMAND_NATIVE_KERNEL             = CL_COMMAND_NATIVE_KERNEL
+    COMMAND_READ_BUFFER               = CL_COMMAND_READ_BUFFER
+    COMMAND_WRITE_BUFFER              = CL_COMMAND_WRITE_BUFFER
+    COMMAND_COPY_BUFFER               = CL_COMMAND_COPY_BUFFER
+    COMMAND_READ_IMAGE                = CL_COMMAND_READ_IMAGE
+    COMMAND_WRITE_IMAGE               = CL_COMMAND_WRITE_IMAGE
+    COMMAND_COPY_IMAGE                = CL_COMMAND_COPY_IMAGE
+    COMMAND_COPY_IMAGE_TO_BUFFER      = CL_COMMAND_COPY_IMAGE_TO_BUFFER
+    COMMAND_COPY_BUFFER_TO_IMAGE      = CL_COMMAND_COPY_BUFFER_TO_IMAGE
+    COMMAND_MAP_BUFFER                = CL_COMMAND_MAP_BUFFER
+    COMMAND_MAP_IMAGE                 = CL_COMMAND_MAP_IMAGE
+    COMMAND_UNMAP_MEM_OBJECT          = CL_COMMAND_UNMAP_MEM_OBJECT
+    COMMAND_MARKER                    = CL_COMMAND_MARKER
+    COMMAND_ACQUIRE_GL_OBJECTS        = CL_COMMAND_ACQUIRE_GL_OBJECTS
+    COMMAND_RELEASE_GL_OBJECTS        = CL_COMMAND_RELEASE_GL_OBJECTS
+
+class filter_mode(CLObject):
+    FILTER_NEAREST                    = CL_FILTER_NEAREST
+    FILTER_LINEAR                     = CL_FILTER_LINEAR
+
 
 
 
@@ -454,7 +554,7 @@ cdef class CLDevice(CLObject):
                                   CL_DRIVER_VERSION,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property vendor:
@@ -467,7 +567,7 @@ cdef class CLDevice(CLObject):
                                   CL_DEVICE_VERSION,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property version:
@@ -480,7 +580,7 @@ cdef class CLDevice(CLObject):
                                   CL_DEVICE_VENDOR,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property profile:
@@ -490,10 +590,10 @@ cdef class CLDevice(CLObject):
             cdef bytes result
             cdef char char_result[256]
             errcode = clGetDeviceInfo(self._device,
-                                  CL_DRIVER_PROFILE,
+                                  CL_DEVICE_PROFILE,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property name:
@@ -506,7 +606,7 @@ cdef class CLDevice(CLObject):
                                   CL_DEVICE_NAME,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property extensions:
@@ -519,7 +619,7 @@ cdef class CLDevice(CLObject):
                                   CL_DEVICE_EXTENSIONS,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
 
@@ -745,6 +845,9 @@ cdef class CLDevice(CLObject):
             return result
 
 
+    def __repr__(self):
+        return '<%s name="%s" type="%s" version="%s">' %  \
+                (self.__class__.__name__, self.name, self.type, self.version, )
 
 
 cdef class CLPlatform(CLObject):
@@ -759,7 +862,7 @@ cdef class CLPlatform(CLObject):
                                   CL_PLATFORM_VERSION,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property name:
@@ -772,7 +875,7 @@ cdef class CLPlatform(CLObject):
                                   CL_PLATFORM_NAME,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property vendor:
@@ -785,7 +888,7 @@ cdef class CLPlatform(CLObject):
                                   CL_PLATFORM_VENDOR,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property extensions:
@@ -798,7 +901,7 @@ cdef class CLPlatform(CLObject):
                                   CL_PLATFORM_EXTENSIONS,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
     property profile:
@@ -811,7 +914,7 @@ cdef class CLPlatform(CLObject):
                                   CL_PLATFORM_PROFILE,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
 
@@ -936,7 +1039,7 @@ cdef class CLKernel(CLObject):
                                   CL_KERNEL_FUNCTION_NAME,
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
             return result
 
 
@@ -968,7 +1071,7 @@ cdef class CLKernel(CLObject):
             if errcode < 0: raise CLError(error_translation_table[errcode])
             for i from 0 <= i < num_args:
                 index = value[i]
-                if index >= 13:
+                if index >= MAX_ARG_TRANSLATION:
                     raise AttributeError("Unknown Type")
             self._ready = True
             self._targs = value
@@ -983,11 +1086,13 @@ cdef class CLKernel(CLObject):
         cdef param p
         cdef cl_int errcode
         if not self._ready: raise AttributeError("Kernel is not ready : did you forget to TYPE it")
-        if len(args) != len(self._targs): raise AttributeError("Error")
+        if len(args) != len(self._targs): raise AttributeError("Number Mismatch")
         for i from 0 <= i < len(args):
             index = self._targs[i]
             p = param_converter_array[index].fct(args[i])
-            errcode = clSetKernelArg(self._kernel, i,param_converter_array[index].itemsize, &p)
+            errcode = clSetKernelArg(self._kernel,
+                                     i,param_converter_array[index].itemsize,
+                                     &p)
             if errcode < 0: raise CLError(error_translation_table[errcode])
 
 
@@ -1121,6 +1226,9 @@ cdef class CLSampler(CLObject):
 
 
 cdef class CLContext(CLObject):
+    """
+    This object represent a CLContext.
+    """
     def __dealloc__(self):
         cdef cl_int errcode
         errcode = clReleaseContext (self._context)
@@ -1128,12 +1236,14 @@ cdef class CLContext(CLObject):
                                 self.__class__.__name__)
 
     def __repr__(self):
-        return '<%s>' %  \
-                (self.__class__.__name__, )
+        return '<%s devices="%s">' %  \
+                (self.__class__.__name__, self.devices, )
     def createBuffer(self, size_t size, cl_mem_flags flags = CL_MEM_READ_WRITE):
         cdef cl_uint offset = 0
         cdef cl_int errcode
-        cdef cl_mem mem = clCreateBuffer(self._context, flags, size, NULL, &errcode)
+        cdef cl_mem mem = clCreateBuffer(self._context,
+                                         flags, size,
+                                         NULL, &errcode)
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return _createCLBuffer(mem, self, offset)
 
@@ -1160,7 +1270,7 @@ cdef class CLContext(CLObject):
         return _createCLImage(mem, self, 0)
 
     def createCommandQueue(self, CLDevice device,
-                        cl_command_queue_properties flags = <cl_command_queue_properties>0):
+                           cl_command_queue_properties flags = <cl_command_queue_properties>0):
         cdef cl_int errcode
         cdef cl_command_queue queue = clCreateCommandQueue(self._context,
                                                            device._device,
@@ -1227,7 +1337,8 @@ cpdef CLContext createContext(list devices):
 
 cpdef waitForEvents(list events):
     """
-    Waits on the host thread for commands identified by event objects in event_list to complet.
+    Waits on the host thread for commands identified by event objects in
+    event_list to complet.
     """
     cdef int num_events = len(events)
     cdef cl_event lst[100]
