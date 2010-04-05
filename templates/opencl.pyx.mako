@@ -2,13 +2,14 @@
 ${copyright()}
 <%
 from itertools import izip
-param_types = ['byte', 'ubyte',
+param_types = ['char', 'uchar',
                'short', 'ushort',
-               'int32', 'uint32',
-               'int64', 'uint64',
-               'intp',
-               'float32',
-               'float64',
+               'int', 'uint',
+               'long', 'ulong',
+               'half',
+               'float',
+               'double',
+               'bool',
                #'float128' # UNTIL WARNING IN GCC
               ];
 
@@ -214,9 +215,6 @@ sampler_properties = \
 
 %>\
 cimport opencl
-cimport numpy as np
-from command cimport *
-
 from opencl cimport *
 
 cdef dict error_translation_table = {
@@ -234,7 +232,7 @@ cdef union param:
     cl_mem              mem_value
     cl_sampler          sampler_value
 %for t in param_types:
-    np.npy_${t} ${' ' * (12 - len(t)) + t}_value
+    cl_${t} ${' ' * (12 - len(t)) + t}_value
 %endfor
 
 ctypedef param (*param_converter_fct)(object) except *
@@ -249,9 +247,9 @@ cdef ptype param_converter_array[MAX_ARG_TRANSLATION]
 %for i, t in enumerate(param_types):
 cdef param from_${t}(object val) except *:
     cdef param p
-    p.${t}_value = <np.npy_${t}>val
+    p.${t}_value = <cl_${t}>val
     return p
-param_converter_array[${i}].itemsize = sizeof(np.npy_${t})
+param_converter_array[${i}].itemsize = sizeof(cl_${t})
 param_converter_array[${i}].fct = from_${t}
 
 %endfor
@@ -356,14 +354,14 @@ cdef class CLMappedBuffer:
     ${properties_repr(['address', 'mapped'])}
     property address:
         def __get__(self):
-            return <np.Py_intptr_t> self._address
+            return <Py_intptr_t> self._address
 
     property __array_interface__:
         def __get__(self):
             if not self._ready: raise AttributeError ("Memory not Mapped")
             return { "shape"        : (self._buffer.size,),
                      "typestr"      : "|i1",
-                     "data"         : (<np.Py_intptr_t> self._address, False),
+                     "data"         : (<Py_intptr_t> self._address, False),
                      "version"      : 3}
 
     property mapped:
@@ -532,6 +530,10 @@ cdef class CLContext(CLObject):
     property devices:
         def __get__(self):
             return self._devices
+
+cdef class CLCommand:
+    cdef object call(self, CLCommandQueue queue):
+        raise AttributeError("Abstract Method")
 
 
 ${makesection("Module level API")}

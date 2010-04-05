@@ -23,10 +23,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 
-cdef class CLCommand:
-    cdef object call(self, CLCommandQueue queue):
-        raise AttributeError("Abstract Method")
-
 cdef class CLCopyBuffer(CLCommand):
     def __cinit__(self, CLBuffer dst, CLBuffer src):
         self._src = src

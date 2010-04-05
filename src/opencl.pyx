@@ -22,9 +22,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 cimport opencl
-cimport numpy as np
-from command cimport *
-
 from opencl cimport *
 
 cdef dict error_translation_table = {
@@ -91,17 +88,18 @@ cdef CLError translateError(cl_int errcode):
 cdef union param:
     cl_mem              mem_value
     cl_sampler          sampler_value
-    np.npy_byte         byte_value
-    np.npy_ubyte        ubyte_value
-    np.npy_short        short_value
-    np.npy_ushort       ushort_value
-    np.npy_int32        int32_value
-    np.npy_uint32       uint32_value
-    np.npy_int64        int64_value
-    np.npy_uint64       uint64_value
-    np.npy_intp         intp_value
-    np.npy_float32      float32_value
-    np.npy_float64      float64_value
+    cl_char         char_value
+    cl_uchar        uchar_value
+    cl_short        short_value
+    cl_ushort       ushort_value
+    cl_int          int_value
+    cl_uint         uint_value
+    cl_long         long_value
+    cl_ulong        ulong_value
+    cl_half         half_value
+    cl_float        float_value
+    cl_double       double_value
+    cl_bool         bool_value
 
 ctypedef param (*param_converter_fct)(object) except *
 
@@ -109,116 +107,124 @@ cdef struct ptype:
     size_t                  itemsize
     param_converter_fct     fct
 
-DEF MAX_ARG_TRANSLATION = 13
+DEF MAX_ARG_TRANSLATION = 14
 cdef ptype param_converter_array[MAX_ARG_TRANSLATION]
 
-cdef param from_byte(object val) except *:
+cdef param from_char(object val) except *:
     cdef param p
-    p.byte_value = <np.npy_byte>val
+    p.char_value = <cl_char>val
     return p
-param_converter_array[0].itemsize = sizeof(np.npy_byte)
-param_converter_array[0].fct = from_byte
+param_converter_array[0].itemsize = sizeof(cl_char)
+param_converter_array[0].fct = from_char
 
-cdef param from_ubyte(object val) except *:
+cdef param from_uchar(object val) except *:
     cdef param p
-    p.ubyte_value = <np.npy_ubyte>val
+    p.uchar_value = <cl_uchar>val
     return p
-param_converter_array[1].itemsize = sizeof(np.npy_ubyte)
-param_converter_array[1].fct = from_ubyte
+param_converter_array[1].itemsize = sizeof(cl_uchar)
+param_converter_array[1].fct = from_uchar
 
 cdef param from_short(object val) except *:
     cdef param p
-    p.short_value = <np.npy_short>val
+    p.short_value = <cl_short>val
     return p
-param_converter_array[2].itemsize = sizeof(np.npy_short)
+param_converter_array[2].itemsize = sizeof(cl_short)
 param_converter_array[2].fct = from_short
 
 cdef param from_ushort(object val) except *:
     cdef param p
-    p.ushort_value = <np.npy_ushort>val
+    p.ushort_value = <cl_ushort>val
     return p
-param_converter_array[3].itemsize = sizeof(np.npy_ushort)
+param_converter_array[3].itemsize = sizeof(cl_ushort)
 param_converter_array[3].fct = from_ushort
 
-cdef param from_int32(object val) except *:
+cdef param from_int(object val) except *:
     cdef param p
-    p.int32_value = <np.npy_int32>val
+    p.int_value = <cl_int>val
     return p
-param_converter_array[4].itemsize = sizeof(np.npy_int32)
-param_converter_array[4].fct = from_int32
+param_converter_array[4].itemsize = sizeof(cl_int)
+param_converter_array[4].fct = from_int
 
-cdef param from_uint32(object val) except *:
+cdef param from_uint(object val) except *:
     cdef param p
-    p.uint32_value = <np.npy_uint32>val
+    p.uint_value = <cl_uint>val
     return p
-param_converter_array[5].itemsize = sizeof(np.npy_uint32)
-param_converter_array[5].fct = from_uint32
+param_converter_array[5].itemsize = sizeof(cl_uint)
+param_converter_array[5].fct = from_uint
 
-cdef param from_int64(object val) except *:
+cdef param from_long(object val) except *:
     cdef param p
-    p.int64_value = <np.npy_int64>val
+    p.long_value = <cl_long>val
     return p
-param_converter_array[6].itemsize = sizeof(np.npy_int64)
-param_converter_array[6].fct = from_int64
+param_converter_array[6].itemsize = sizeof(cl_long)
+param_converter_array[6].fct = from_long
 
-cdef param from_uint64(object val) except *:
+cdef param from_ulong(object val) except *:
     cdef param p
-    p.uint64_value = <np.npy_uint64>val
+    p.ulong_value = <cl_ulong>val
     return p
-param_converter_array[7].itemsize = sizeof(np.npy_uint64)
-param_converter_array[7].fct = from_uint64
+param_converter_array[7].itemsize = sizeof(cl_ulong)
+param_converter_array[7].fct = from_ulong
 
-cdef param from_intp(object val) except *:
+cdef param from_half(object val) except *:
     cdef param p
-    p.intp_value = <np.npy_intp>val
+    p.half_value = <cl_half>val
     return p
-param_converter_array[8].itemsize = sizeof(np.npy_intp)
-param_converter_array[8].fct = from_intp
+param_converter_array[8].itemsize = sizeof(cl_half)
+param_converter_array[8].fct = from_half
 
-cdef param from_float32(object val) except *:
+cdef param from_float(object val) except *:
     cdef param p
-    p.float32_value = <np.npy_float32>val
+    p.float_value = <cl_float>val
     return p
-param_converter_array[9].itemsize = sizeof(np.npy_float32)
-param_converter_array[9].fct = from_float32
+param_converter_array[9].itemsize = sizeof(cl_float)
+param_converter_array[9].fct = from_float
 
-cdef param from_float64(object val) except *:
+cdef param from_double(object val) except *:
     cdef param p
-    p.float64_value = <np.npy_float64>val
+    p.double_value = <cl_double>val
     return p
-param_converter_array[10].itemsize = sizeof(np.npy_float64)
-param_converter_array[10].fct = from_float64
+param_converter_array[10].itemsize = sizeof(cl_double)
+param_converter_array[10].fct = from_double
+
+cdef param from_bool(object val) except *:
+    cdef param p
+    p.bool_value = <cl_bool>val
+    return p
+param_converter_array[11].itemsize = sizeof(cl_bool)
+param_converter_array[11].fct = from_bool
 
 cdef param from_CLBuffer(object val) except *:
     cdef CLBuffer buf_val = val
     cdef param p
     p.mem_value = buf_val._mem
     return p
-param_converter_array[11].itemsize = sizeof(cl_mem)
-param_converter_array[11].fct = from_CLBuffer
+param_converter_array[12].itemsize = sizeof(cl_mem)
+param_converter_array[12].fct = from_CLBuffer
 
 cdef param from_CLSampler(object val) except *:
     cdef CLSampler buf_val = val
     cdef param p
     p.sampler_value = buf_val._sampler
     return p
-param_converter_array[12].itemsize = sizeof(cl_sampler)
-param_converter_array[12].fct = from_CLSampler
+param_converter_array[13].itemsize = sizeof(cl_sampler)
+param_converter_array[13].fct = from_CLSampler
 
 class parameter_type(CLObject):
-    BYTE_TYPE          = 0
-    UBYTE_TYPE         = 1
+    CHAR_TYPE          = 0
+    UCHAR_TYPE         = 1
     SHORT_TYPE         = 2
     USHORT_TYPE        = 3
-    INT32_TYPE         = 4
-    UINT32_TYPE        = 5
-    INT64_TYPE         = 6
-    UINT64_TYPE        = 7
-    INTP_TYPE          = 8
-    FLOAT32_TYPE       = 9
-    FLOAT64_TYPE       = 10
-    MEM_TYPE           = 11
-    SAMPLER_TYPE       = 12
+    INT_TYPE           = 4
+    UINT_TYPE          = 5
+    LONG_TYPE          = 6
+    ULONG_TYPE         = 7
+    HALF_TYPE          = 8
+    FLOAT_TYPE         = 9
+    DOUBLE_TYPE        = 10
+    BOOL_TYPE          = 11
+    MEM_TYPE           = 12
+    SAMPLER_TYPE       = 13
     IMAGE_TYPE         = MEM_TYPE
 
 class channel_type(CLObject):
@@ -394,14 +400,14 @@ cdef class CLMappedBuffer:
                 (self.__class__.__name__, self.address, self.mapped, )
     property address:
         def __get__(self):
-            return <np.Py_intptr_t> self._address
+            return <Py_intptr_t> self._address
 
     property __array_interface__:
         def __get__(self):
             if not self._ready: raise AttributeError ("Memory not Mapped")
             return { "shape"        : (self._buffer.size,),
                      "typestr"      : "|i1",
-                     "data"         : (<np.Py_intptr_t> self._address, False),
+                     "data"         : (<Py_intptr_t> self._address, False),
                      "version"      : 3}
 
     property mapped:
@@ -1300,6 +1306,10 @@ cdef class CLContext(CLObject):
     property devices:
         def __get__(self):
             return self._devices
+
+cdef class CLCommand:
+    cdef object call(self, CLCommandQueue queue):
+        raise AttributeError("Abstract Method")
 
 
 

@@ -27,6 +27,10 @@ from libopencl cimport *
 cdef extern from "pyerrors.h":
     ctypedef class __builtin__.Exception [object PyBaseExceptionObject]: pass
 
+cdef extern from "Python.h":
+    ctypedef long long Py_intptr_t
+
+
 
 cdef class CLObject
 cdef class CLBuffer
@@ -91,6 +95,10 @@ cdef class CLPlatform(CLObject):
     cdef cl_platform_id     _platform
 
 
+cdef class CLCommand:
+    cdef object call(self, CLCommandQueue queue)
+
+
 cdef inline CLEvent _createCLEvent(cl_event event, CLCommandQueue queue):
     cdef CLEvent instance = CLEvent.__new__(CLEvent)
     instance._event             = event
@@ -151,6 +159,5 @@ cdef inline CLContext _createCLContext(list device, cl_context context):
     instance._context           = context
     instance._devices            = device
     return instance
-
 
 

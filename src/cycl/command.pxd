@@ -3,9 +3,6 @@ from libopencl cimport *
 
 cimport numpy as np
 
-cdef class CLCommand:
-    cdef object call(self, CLCommandQueue queue)
-
 cdef class CLCopyBuffer(CLCommand):
     cdef CLBuffer       _src
     cdef CLBuffer       _dst
