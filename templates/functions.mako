@@ -38,7 +38,6 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
 <%ret_string += "r_%d, " % i %>\
             %endfor
                 return (${ret_string})
-
         %else:
             return _get${obj_type}Info_${ptype}(self.${internal},
                                         ${pdefine})
@@ -76,7 +75,7 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
                                   ${pdefine},
                                   256 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
-            result = char_result[:size]
+            result = char_result[:size - 1]
         %else:
             errcode = ${fct_name}(self.${internal},
                                   ${pdefine},
