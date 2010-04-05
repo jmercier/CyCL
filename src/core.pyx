@@ -21,9 +21,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-cimport opencl
-from opencl cimport *
-
 cdef dict error_translation_table = {
         CL_SUCCESS                               : "CL_SUCCESS",
         CL_DEVICE_NOT_FOUND                      : "CL_DEVICE_NOT_FOUND",

@@ -1,4 +1,4 @@
-from opencl cimport *
+from core cimport *
 from libopencl cimport *
 
 cimport numpy as np

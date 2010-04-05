@@ -6,7 +6,7 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 
-extensions = [ Extension("cycl.opencl", ['src/opencl.pyx'],
+extensions = [ Extension("cycl.core", ['src/core.pyx'],
                          libraries = [opencl_library],
                          library_dirs = [opencl_library_dir],
                          include_dirs = [opencl_include_dir, 'src']),
