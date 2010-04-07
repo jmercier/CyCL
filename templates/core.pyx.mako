@@ -1,5 +1,5 @@
 <%namespace file="functions.mako" import="*"/>\
-${copyright()}
+${license}
 <%
 from itertools import izip
 param_types = ['char', 'uchar',

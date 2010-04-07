@@ -1,5 +1,5 @@
-<%namespace file="functions.mako" import="*"/>
-${copyright()}
+<%namespace file="functions.mako" import="*"/>\
+${license}
 
 cdef class CLCopyBuffer(CLCommand):
     """
