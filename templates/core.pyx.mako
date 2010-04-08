@@ -402,7 +402,7 @@ cdef class CLPlatform(CLObject):
             prop = properties[i - 1]
             cproperties[i * 2] = <cl_context_properties>prop[0]
             cproperties[i * 2 + 1] = <cl_context_properties>prop[1]
-        properties[(num_properties + 1) * 2] = <cl_context_properties>0
+        cproperties[(num_properties + 1) * 2] = <cl_context_properties>0
         for i from 0 <= i < min(num_devices, 100):
             clDevices[i] = (<CLDevice>devices[i])._device
         cdef cl_context context = clCreateContext(cproperties, num_devices, clDevices,
