@@ -12,7 +12,7 @@ __kernel void t1(__global int *data, int value)
 
 p = cycl.getPlatforms()[0]
 d = p.getDevices()[0]
-c = cycl.createContext([d])
+c = p.createContext([d])
 
 b = c.createBuffer(512 * 512 * 4)
 bhost = np.zeros((512, 512), 'int32')

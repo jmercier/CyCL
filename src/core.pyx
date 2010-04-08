@@ -932,6 +932,29 @@ cdef class CLPlatform(CLObject):
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return [_createCLDevice(devices[i]) for i from 0 <= i < num_devices]
 
+    def createContext(self, list devices, tuple properties = ()):
+        """
+        Creates an OpenCL context.
+        """
+        cdef long num_devices = len(devices)
+        cdef cl_device_id clDevices[100]
+        cdef cl_context_properties cproperties[100]
+        cdef cl_int errcode
+        cproperties[0] = CL_CONTEXT_PLATFORM
+        cproperties[1] = <cl_context_properties>self._platform
+        cdef tuple prop
+        cdef size_t num_properties = len(properties)
+        for i from 0 < i <= min(100, num_properties):
+            prop = properties[i - 1]
+            cproperties[i * 2] = <cl_context_properties>prop[0]
+            cproperties[i * 2 + 1] = <cl_context_properties>prop[1]
+        properties[(num_properties + 1) * 2] = <cl_context_properties>0
+        for i from 0 <= i < min(num_devices, 100):
+            clDevices[i] = (<CLDevice>devices[i])._device
+        cdef cl_context context = clCreateContext(cproperties, num_devices, clDevices,
+                                              NULL, NULL, &errcode)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+        return _createCLContext(devices, context)
 
 
 cdef class CLBuffer(CLObject):
@@ -1308,6 +1331,8 @@ cdef class CLCommand:
     cdef object call(self, CLCommandQueue queue):
         raise AttributeError("Abstract Method")
 
+cdef class CLGLBuffer(CLBuffer):
+    pass
 
 
 #
@@ -1325,22 +1350,6 @@ cpdef list getPlatforms():
     cdef cl_int errcode = clGetPlatformIDs(15, platforms, &num_platforms)
     if errcode < 0: raise CLError(error_translation_table[errcode])
     return [_createCLPlatform(platforms[i]) for i from 0 <= i < num_platforms]
-
-
-cpdef CLContext createContext(list devices):
-    """
-    Creates an OpenCL context.
-    """
-    cdef long num_devices = len(devices)
-    cdef cl_device_id clDevices[100]
-    cdef cl_int errcode
-    for i from 0 <= i < min(num_devices, 100):
-        clDevices[i] = (<CLDevice>devices[i])._device
-    cdef cl_context context = clCreateContext(NULL, num_devices, clDevices,
-                                              NULL, NULL, &errcode)
-    if errcode < 0: raise CLError(error_translation_table[errcode])
-    return _createCLContext(devices, context)
-
 
 cpdef waitForEvents(list events):
     """

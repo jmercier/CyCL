@@ -310,6 +310,10 @@ cdef extern from "CL/cl.h":
                 CL_MAP_READ                                 = (1 << 0)
                 CL_MAP_WRITE                                = (1 << 1)
 
+        ctypedef enum cl_context_properties:
+                CL_CONTEXT_PLATFORM                         = 0x1084
+
+
 
 
 
