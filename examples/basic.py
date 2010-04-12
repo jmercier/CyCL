@@ -27,5 +27,6 @@ cmd = cycl.CLNDRangeKernel(k1, global_work_size = ( 512 * 512, 1, 1), local_work
 cmd2 = cycl.CLReadBufferNDArray(bhost, b)
 q.enqueue(cmd)
 q.enqueue(cmd2)
+q.finish()
 print bhost
 
