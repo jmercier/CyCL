@@ -1,7 +1,6 @@
 <%namespace file="functions.mako" import="*"/>\
 ${license}
 <%
-from itertools import izip
 param_types = ['char', 'uchar',
                'short', 'ushort',
                'int', 'uint',
