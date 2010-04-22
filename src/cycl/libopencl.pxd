@@ -20,8 +20,6 @@
 # WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
-#
-# $Revision: 9283 $ on $Date: 2009-10-14 22:48:57 +0530 (Wed, 14 Oct 2009) $
 
 cdef extern from *:
         ctypedef char * const_char_ptr  "const char *"

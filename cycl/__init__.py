@@ -1,2 +1,2 @@
-from core import *
-from command import *
+from .core import *
+from .command import *
