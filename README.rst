@@ -1,5 +1,7 @@
+======
+======
 Example usage::
-----
+    
     import cycl
     import numpy as np
 
