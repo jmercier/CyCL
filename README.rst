@@ -20,12 +20,12 @@ Example usage::
 
     device_buffer = c.createBuffer(512 * 512 * 4)
     host_buffer = np.zeros((512, 512), 'int32')
-    queue = c.createCommandQueue(device)
+    queue = ctx.createCommandQueue(device)
 
-    program = c.createProgramWithSource(kernel).build()
-    print p.getBuildLog(device)
+    program = ctx.createProgramWithSource(kernel).build()
+    print program.getBuildLog(device)
 
-    kernel = p.createKernel("fill")
+    kernel = program.createKernel("fill")
     kernel.parameters = (cycl.parameter_type.MEM_TYPE, cycl.parameter_type.INT_TYPE)
 
     kernel.setArgs(b, 10)
@@ -34,7 +34,7 @@ Example usage::
     cmd2 = cycl.CLReadBufferNDArray(host_buffer, device_buffer)
 
     queue.enqueue(cmd1)
-    q.enqueue(cmd2)
+    queue.enqueue(cmd2)
 
-    q.finish()
+    queue.finish()
     print host_buffer
