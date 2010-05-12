@@ -15,10 +15,10 @@ Example usage::
     """
 
     platform = cycl.getPlatforms()[0]
-    device = p.getDevices()[0]
-    ctx = p.createContext([device])
+    device = platform.getDevices()[0]
+    ctx = platform.createContext([device])
 
-    device_buffer = c.createBuffer(512 * 512 * 4)
+    device_buffer = ctx.createBuffer(512 * 512 * 4)
     host_buffer = np.zeros((512, 512), 'int32')
     queue = ctx.createCommandQueue(device)
 
@@ -28,7 +28,7 @@ Example usage::
     kernel = program.createKernel("fill")
     kernel.parameters = (cycl.parameter_type.MEM_TYPE, cycl.parameter_type.INT_TYPE)
 
-    kernel.setArgs(b, 10)
+    kernel.setArgs(device_buffer, 10)
 
     cmd1 = cycl.CLNDRangeKernel(kernel, global_work_size = (512 * 512, 1, 1), local_work_size = (256, 1, 1))
     cmd2 = cycl.CLReadBufferNDArray(host_buffer, device_buffer)
