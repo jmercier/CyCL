@@ -75,10 +75,10 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
 %else:
             cdef ${ptype} result
 %if ptype == "bytes":
-            cdef char char_result[256]
+            cdef char char_result[1024]
             errcode = ${fct_name}(self.${internal},
                                   ${pdefine},
-                                  256 * sizeof(char), char_result, &size)
+                                  1024 * sizeof(char), char_result, &size)
             if errcode < 0: raise CLError(error_translation_table[errcode])
             result = char_result[:size - 1]
 %else:

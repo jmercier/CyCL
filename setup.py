@@ -6,11 +6,11 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 
-extensions = [ Extension("cycl.core", ['src/core.pyx'],
+extensions = [ Extension("cycl.core", ['build/core.pyx'],
                          libraries = [opencl_library],
                          library_dirs = [opencl_library_dir],
                          include_dirs = [opencl_include_dir, 'src']),
-               Extension("cycl.command", ['src/command.pyx'],
+               Extension("cycl.command", ['build/command.pyx'],
                              libraries = [opencl_library],
                              library_dirs = [opencl_library_dir],
                              include_dirs = [opencl_include_dir, 'src'])]
