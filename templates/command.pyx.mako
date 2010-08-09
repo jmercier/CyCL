@@ -1,6 +1,10 @@
 <%namespace file="functions.mako" import="*"/>\
 ${license}
 
+cdef extern from "numpy/arrayobject.h":
+    void import_array() except *
+import_array()
+
 cdef class CLCopyBuffer(CLCommand):
     """
     This command copy a device buffer to another device buffer

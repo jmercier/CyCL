@@ -1,3 +1,6 @@
+# vim: filetype=pyrex
+#
+#
 <%namespace file="functions.mako" import="*"/>\
 ${license}
 <%
@@ -172,6 +175,9 @@ device_properties = \
                         ('compilerAvailable',            'CL_DEVICE_COMPILER_AVAILABLE'),
                         ('available',                    'CL_DEVICE_AVAILABLE')]}
 
+context_properties = \
+        {'size_t' : [('num_devices',                     'CL_CONTEXT_NUM_DEVICES')]}
+
 
 platform_properties = \
         { 'bytes'    : [('version',                      'CL_PLATFORM_VERSION'),
@@ -181,19 +187,27 @@ platform_properties = \
                         ('profile',                      'CL_PLATFORM_PROFILE')]}
 
 buffer_properties = \
-        { 'size_t'   : [('size',                         'CL_MEM_SIZE')]}
-
+        { 'size_t'   : [('size',                         'CL_MEM_SIZE'),
+                        ('type',                         'CL_MEM_TYPE'),
+                        ('flags',                        'CL_MEM_FLAGS'),
+                        ('host',                         'CL_MEM_HOST_PTR')]}
 image_properties = \
         { 'size_t'   : [('slicePitch',                   'CL_IMAGE_SLICE_PITCH'),
                         ('elementSize',                  'CL_IMAGE_ELEMENT_SIZE'),
                         ('shape',                       ('CL_IMAGE_WIDTH',
                                                          'CL_IMAGE_HEIGHT',
                                                          'CL_IMAGE_DEPTH')),
-                        ('rowPitch',                     'CL_IMAGE_ROW_PITCH')]}
+                        ('pitch',                        ('CL_IMAGE_ROW_PITCH',
+                                                          'CL_IMAGE_SLICE_PITCH')),
+
+                        ('rowPitch',                     'CL_IMAGE_ROW_PITCH'),],
+         'cl_image_format' : [('format',                       'CL_IMAGE_FORMAT')]}
 
 kernel_properties = \
         { 'bytes'    : [('name',                         'CL_KERNEL_FUNCTION_NAME')],
           'cl_uint'  : [('numArgs',                      'CL_KERNEL_NUM_ARGS')]}
+
+kernel_workgroup_properties = {'cl_kernel_work_group_info' : [('workgroup_size', 'CL_KERNEL_WORK_GROUP_SIZE')]}
 
 event_properties = \
         { 'cl_int'   : [('type',                         'CL_EVENT_COMMAND_TYPE'),
@@ -209,6 +223,10 @@ sampler_properties = \
         { 'cl_uint'  : [('normalized',                   'CL_SAMPLER_NORMALIZED_COORDS'),
                                                         ('filterMode', 'CL_SAMPLER_FILTER_MODE'),
                                                         ('addressingMode', 'CL_SAMPLER_ADDRESSING_MODE')]}
+
+program_properties = \
+        {'size_t'   : [('num_devices',                   'CL_PROGRAM_NUM_DEVICES'),
+                       ('binary_size',                   'CL_PROGRAM_BINARY_SIZES'),]}
 
 %>\
 cdef dict error_translation_table = {
@@ -305,6 +323,7 @@ cdef class CLCommandQueue(CLObject):
 
 cdef class CLProgram(CLObject):
     ${make_dealloc("clReleaseProgram(self._program)")}
+    ${properties_getter2("clGetProgramInfo", "_program", program_properties)}
     def createKernelsInProgram(self):
         cdef cl_kernel kernels[20]
         cdef cl_uint num_kernels
@@ -320,12 +339,12 @@ cdef class CLProgram(CLObject):
         return _createCLKernel(self, kernel)
 
     def getBuildLog(self, CLDevice device):
-        cdef char log[10000]
+        cdef char log[100000]
         cdef size_t size
         cdef cl_int errcode
         errcode = clGetProgramBuildInfo(self._program, device._device,
                                         CL_PROGRAM_BUILD_LOG,
-                                        10000, log, &size)
+                                        100000, log, &size)
         if errcode < 0: raise CLError(error_translation_table[errcode])
         s = log[:size]
         return s
@@ -421,7 +440,7 @@ cdef class CLBuffer(CLObject):
 
 cdef class CLImage(CLBuffer):
     ${properties_getter2("clGetImageInfo", "_mem", image_properties)}
-    ${properties_repr(['shape'])}
+    ${properties_repr(['shape', 'format'])}
 
 
 cdef class CLKernel(CLObject):
@@ -516,6 +535,18 @@ cdef class CLContext(CLObject):
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return _createCLImage(mem, self, 0)
 
+    def createImage(self, tuple shape,
+                    cl_channel_order order = channel_order.INTENSITY,
+                    cl_channel_type itype = channel_type.FLOAT,
+                    cl_mem_flags flags = CL_MEM_READ_WRITE):
+        if len(shape) == 2:
+            return self.createImage2D(shape[0], shape[1], order, itype, flags = flags)
+        elif len(shape) == 3:
+            return self.createImage3D(shape[0], shape[1], shape[2], order, itype, flags = flags)
+        else:
+            raise CLError("Can only create 2D or 3D image : invalid shape %s" % str(shape))
+
+
     def createCommandQueue(self, CLDevice device,
                            cl_command_queue_properties flags = <cl_command_queue_properties>0):
         cdef cl_int errcode
@@ -543,6 +574,9 @@ cdef class CLContext(CLObject):
                                                             &errcode)
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return _createCLProgram(self, program)
+
+    def createBufferLike(self, buf, cl_mem_flags flags = CL_MEM_READ_WRITE):
+        return self.createBuffer(buf.size * buf.itemsize, flags = flags)
 
     property devices:
         def __get__(self):

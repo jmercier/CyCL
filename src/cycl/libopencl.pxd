@@ -62,6 +62,7 @@ cdef extern from "CL/cl.h":
         ctypedef cl_uint        cl_filter_mode
         ctypedef cl_uint        cl_addressing_mode
         ctypedef cl_uint        cl_profiling_info
+        ctypedef cl_uint        cl_kernel_work_group_info
 
         ctypedef enum cl_device_info_enum:
                 CL_DEVICE_TYPE                              = 0x1000
@@ -239,6 +240,15 @@ cdef extern from "CL/cl.h":
                 CL_PROGRAM_BUILD_OPTIONS                    = 0x1182
                 CL_PROGRAM_BUILD_LOG                        = 0x1183
 
+        ctypedef enum cl_program_info:
+                CL_PROGRAM_REFERENCE_COUNT                  = 0x1160
+                CL_PROGRAM_CONTEXT                          = 0x1161
+                CL_PROGRAM_NUM_DEVICES                      = 0x1162
+                CL_PROGRAM_DEVICES                          = 0x1163
+                CL_PROGRAM_SOURCE                           = 0x1164
+                CL_PROGRAM_BINARY_SIZES                     = 0x1165
+                CL_PROGRAM_BINARIES                         = 0x1166
+
         ctypedef enum cl_kernel_info:
                 CL_KERNEL_FUNCTION_NAME                     = 0x1190
                 CL_KERNEL_NUM_ARGS                          = 0x1191
@@ -311,6 +321,11 @@ cdef extern from "CL/cl.h":
         ctypedef enum cl_context_properties:
                 CL_CONTEXT_PLATFORM                         = 0x1084
 
+        ctypedef enum cl_kernel_workgroup_info:
+                CL_KERNEL_WORK_GROUP_SIZE                   = 0x11B0
+                CL_KERNEL_COMPILE_WORK_GROUP_SIZE           = 0x11B1
+                CL_KERNEL_LOCAL_MEM_SIZE                    = 0x11B2
+
 
 
 
@@ -350,6 +365,13 @@ cdef extern from "CL/cl.h":
                                         void (*pfn_notify) (char *, void *, size_t, void *),
                                         void *,
                                         cl_int *)
+
+        cdef cl_int clGetContextInfo(cl_context,
+                                     cl_context_info,
+                                     size_t,
+                                     void *,
+                                     size_t *)
+
 
         # Context API
         #cdef cl_context clCreateContext(cl_context_properties *,
@@ -438,6 +460,12 @@ cdef extern from "CL/cl.h":
                                           size_t,
                                           void *,
                                           size_t *) nogil
+        cdef cl_int clGetProgramInfo(cl_program program,
+                                     cl_program_info,
+                                     size_t,
+                                     void *,
+                                     size_t *) nogil
+
 
         cdef cl_int clGetKernelInfo(cl_kernel,
                                     cl_kernel_info,
