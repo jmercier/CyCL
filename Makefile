@@ -26,7 +26,7 @@ clean:
 
 templates : build/command.pyx build/core.pyx
 
-python_package: build/command.pyx build/core.pyx cycl/*
+python_package: build/command.pyx build/core.pyx ${PROJECT}/* src/${PROJECT}
 	python setup.py build
 
 
