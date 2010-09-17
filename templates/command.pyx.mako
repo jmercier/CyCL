@@ -64,12 +64,9 @@ cdef class CLNDRangeKernel(CLCommand):
                   tuple global_work_size = (1,1,1),
                   tuple local_work_size = (1,1,1)):
         self._kernel = kernel
-        self._gws[0] = global_work_size[0]
-        self._gws[1] = global_work_size[1]
-        self._gws[2] = global_work_size[2]
-        self._lws[0] = local_work_size[0]
-        self._lws[1] = local_work_size[1]
-        self._lws[2] = local_work_size[2]
+        for i in xrange(3):
+            self._gws[i] = global_work_size[i]
+            self._lws[i] = local_work_size[i]
 
 
     cdef object call(self, CLCommandQueue queue):
@@ -135,11 +132,14 @@ cdef class CLReadImageNDArray(CLCommand):
     def __cinit__(self, np.ndarray dst, CLImage src, cl_bool blocking = True):
             self._dst = dst
             self._src = src
+
             self._shape[1] = self._shape[2] = 1
             self._origin[0] = self._origin[1] = self._origin[2] = 0
             self._shape[0] = dst.shape[0]
+
             self._blocking = blocking
             self._slice_pitch = self._row_pitch = 0
+
             if dst.ndim > 1:
                 self._shape[1] = dst.shape[1]
                 self._row_pitch = dst.strides[0]
@@ -164,15 +164,16 @@ cdef class CLReadImageNDArray(CLCommand):
         return _createCLEvent(event, queue)
 
 cdef class CLWriteImageNDArray(CLCommand):
-
     def __cinit__(self, CLImage dst, np.ndarray src, cl_bool blocking = True):
             self._dst = dst
             self._src = src
             self._shape[1] = self._shape[2] = 1
             self._origin[0] = self._origin[1] = self._origin[2] = 0
             self._shape[0] = src.shape[0]
+
             self._blocking = blocking
             self._slice_pitch = self._row_pitch = 0
+
             if src.ndim > 1:
                 self._shape[1] = src.shape[1]
                 self._row_pitch = src.strides[0]
