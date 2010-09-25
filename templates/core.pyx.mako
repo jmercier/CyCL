@@ -1,6 +1,4 @@
-# vim: filetype=pyrex
-#
-#
+
 <%namespace file="functions.mako" import="*"/>\
 ${license}
 <%
@@ -619,7 +617,7 @@ cpdef waitForEvents(list events):
     cdef cl_int errcode = clWaitForEvents(num_events, lst)
     if errcode < 0: raise CLError(error_translation_table[errcode])
 
-
-
-
-
+#
+# vim: filetype=pyrex
+#
+#

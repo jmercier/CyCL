@@ -242,3 +242,8 @@ cdef class CLMapBuffer(CLCommand):
         self._dst._buffer = self._src
         self._dst._ready = True
         return _createCLEvent(event, queue)
+
+#
+# vim: filetype=pyrex
+#
+#

@@ -121,3 +121,8 @@ def __dealloc__(self):
                                 self.__class__.__name__)
 </%text>\
 </%def>
+
+#
+# vim: filetype=pyrex
+#
+#
