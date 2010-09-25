@@ -1,0 +1,29 @@
+
+CyCL=/home/jee/work/academic/development/python/CyCL filter="*py LICENSE README.rst" {
+ config.py
+ setup.py
+ LICENSE
+ README.rst
+ cycl=cycl {
+  __init__.py
+ }
+ examples=examples {
+  basic.py
+ }
+ scripts=scripts {
+  gen_template.py
+ }
+ src=src {
+  cycl=cycl {
+   __init__.py
+   command.pxd
+   core.pxd
+   libopencl.pxd
+  }
+ }
+ templates=templates {
+  command.pyx.mako
+  core.pyx.mako
+  functions.mako
+ }
+}
