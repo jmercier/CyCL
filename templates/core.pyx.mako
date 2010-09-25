@@ -233,6 +233,7 @@ cdef dict error_translation_table = {
 %endfor
 }
 
+import collections
 
 cdef CLError translateError(cl_int errcode):
     return CLError(error_translation_table[errcode])
@@ -312,8 +313,11 @@ cdef class CLCommandQueue(CLObject):
         cdef cl_int errcode = clFinish(self._command_queue)
         if errcode < 0: raise CLError(error_translation_table[errcode])
 
-    def enqueue(self, CLCommand cmd):
-        return cmd.call(self)
+    def enqueue(self, cmdlst):
+        if not isinstance(cmdlst, collections.Iterable):
+            cmdlst = [cmdlst]
+        return [(<CLCommand>cmd).call(self) for cmd in cmdlst]
+
 
     def enqueueWaitForEvents(self, list events):
         cdef cl_event lst[100]
