@@ -297,6 +297,13 @@ class ${dtype}(CLObject):
 
 
 ${makesection("Classes")}
+
+cdef class CLObject(object):
+    def __init__(self, *args, **kw):
+        raise RuntimeError("%s Object cannot be instantiated from python" % \
+                          self.__class__.__name__)
+
+
 cdef class CLCommandQueue(CLObject):
     ${make_dealloc("clReleaseCommandQueue(self._command_queue)")}
     def flush(self):
