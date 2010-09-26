@@ -49,50 +49,50 @@ cdef CLError translateError(cl_int error)
 cdef class CLObject: pass
 
 cdef class CLDevice(CLObject):
-    cdef cl_device_id       _device
+    cdef cl_device_id               _device
 
 cdef class CLBuffer(CLObject):
-    cdef cl_mem             _mem
-    cdef cl_uint            _offset
-    cdef CLContext          _context
+    cdef cl_mem                     _mem
+    cdef cl_uint                    _offset
+    cdef readonly CLContext         _context
 
 cdef class CLMappedBuffer:
-    cdef CLBuffer           _buffer
-    cdef void *             _address
-    cdef bint               _ready
+    cdef readonly CLBuffer          _buffer
+    cdef void *                     _address
+    cdef bint                       _ready
 
 cdef class CLCommandQueue(CLObject):
-    cdef cl_command_queue   _command_queue
-    cdef CLContext          _context
+    cdef cl_command_queue           _command_queue
+    cdef readonly CLContext         _context
 
 cdef class CLImage(CLBuffer): pass
 
 cdef class CLKernel(CLObject):
-    cdef cl_kernel          _kernel
-    cdef CLProgram          _program
-    cdef tuple              _targs
-    cdef cl_bool            _ready
+    cdef cl_kernel                  _kernel
+    cdef readonly CLProgram         _program
+    cdef tuple                      _targs
+    cdef cl_bool                    _ready
 
 cdef class CLProgram(CLObject):
-    cdef cl_program         _program
-    cdef CLContext          _context
+    cdef cl_program                 _program
+    cdef readonly CLContext         _context
 
 cdef class CLContext(CLObject):
-    cdef cl_context         _context
-    cdef list               _devices
+    cdef cl_context                 _context
+    cdef readonly list              _devices
 
 
 cdef class CLEvent(CLObject):
-    cdef cl_event           _event
-    cdef CLCommandQueue     _queue
+    cdef cl_event                   _event
+    cdef readonly CLCommandQueue    _queue
 
 
 cdef class CLSampler(CLObject):
-    cdef cl_sampler         _sampler
-    cdef CLContext          _context
+    cdef cl_sampler                 _sampler
+    cdef readonly CLContext         _context
 
 cdef class CLPlatform(CLObject):
-    cdef cl_platform_id     _platform
+    cdef cl_platform_id             _platform
 
 
 cdef class CLCommand:
