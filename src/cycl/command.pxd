@@ -3,6 +3,22 @@ from libopencl cimport *
 
 cimport numpy as np
 
+cdef class CLCopyImageToBuffer(CLCommand):
+    cdef CLImage        _src
+    cdef CLBuffer       _dst
+    cdef size_t         _origin[3]
+    cdef size_t         _shape[3]
+
+    cdef object call(self, CLCommandQueue queue)
+
+cdef class CLCopyBufferToImage(CLCommand):
+    cdef CLImage        _src
+    cdef CLBuffer       _dst
+    cdef size_t         _origin[3]
+    cdef size_t         _shape[3]
+
+    cdef object call(self, CLCommandQueue queue)
+
 cdef class CLCopyBuffer(CLCommand):
     cdef CLBuffer       _src
     cdef CLBuffer       _dst
@@ -42,7 +58,7 @@ cdef class CLUnmapBuffer(CLCommand):
 cdef class CLNDRangeKernel(CLCommand):
     cdef CLKernel       _kernel
     cdef size_t         _gws[3]
-    cdef size_t         _lws[3]
+    cdef size_t         *_lws
 
     cdef object call(self, CLCommandQueue queue)
 

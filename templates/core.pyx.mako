@@ -285,14 +285,23 @@ class parameter_type(CLObject):
     ${t.upper()}_TYPE ${' ' * (12 - len(t))} = ${i}
 %endfor
     IMAGE_TYPE         = MEM_TYPE
+    string_dict = { "float64" : DOUBLE_TYPE,
+                    "float32" : FLOAT_TYPE,
+                    "int"     : INT_TYPE,
+                    "int32"     : INT_TYPE,
+                    "double"  : DOUBLE_TYPE,
+                    "int64"   : LONG_TYPE,
+                    "int8"    : CHAR_TYPE,
+                    "int16"   : UCHAR_TYPE,
+                    "half"    : HALF_TYPE }
 
 %for dtype in defines_types:
 class ${dtype}(CLObject):
 %for f in defines_types[dtype]:
     ${f[3:]} ${' ' * (35 - len(f))} = ${f}
 %endfor
-
 %endfor
+
 
 
 ${makesection("Classes")}
@@ -446,6 +455,9 @@ cdef class CLBuffer(CLObject):
         def __get__(self):
             return self._offset
 
+cdef class CLTypedBuffer(CLBuffer):
+    ${properties_repr(['size', 'offset', 'dtype'])}
+
 
 cdef class CLImage(CLBuffer):
     ${properties_getter2("clGetImageInfo", "_mem", image_properties)}
@@ -456,6 +468,38 @@ cdef class CLKernel(CLObject):
     ${make_dealloc("clReleaseKernel(self._kernel)")}
     ${properties_getter2("clGetKernelInfo", "_kernel", kernel_properties)}
     ${properties_repr(['name', 'numArgs', 'ready'])}
+
+    def getWorkGroupSize(self, CLDevice device):
+        cdef size_t wgs
+        cdef size_t size
+        cdef cl_int errcode
+        errcode = clGetKernelWorkGroupInfo(self._kernel, device._device,
+                                           CL_KERNEL_WORK_GROUP_SIZE,
+                                           sizeof(size_t), &wgs, &size)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+        return wgs
+
+    def getLocalMemSize(self, CLDevice device):
+        cdef size_t memsize
+        cdef size_t size
+        cdef cl_int errcode
+        errcode = clGetKernelWorkGroupInfo(self._kernel, device._device,
+                                           CL_KERNEL_WORK_GROUP_SIZE,
+                                           sizeof(size_t), &memsize, &size)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+        return memsize
+
+    def getCompileWorkGroupSize(self, CLDevice device):
+        cdef size_t wgs[3]
+        cdef size_t size
+        cdef cl_int errcode
+        errcode = clGetKernelWorkGroupInfo(self._kernel, device._device,
+                                           CL_KERNEL_WORK_GROUP_SIZE,
+                                           sizeof(size_t) * 3, wgs, &size)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+        return tuple([wgs[i] for i in xrange(3)])
+
+
     property parameters:
         def __get__(self):
             return self._targs
@@ -522,6 +566,17 @@ cdef class CLContext(CLObject):
         if errcode < 0: raise CLError(error_translation_table[errcode])
         return _createCLBuffer(mem, self, offset)
 
+    def createTypedBuffer(self, size_t size, object dtype, cl_mem_flags flags = CL_MEM_READ_WRITE):
+        if isinstance(dtype, str):
+            dtype = cnp.dtype(dtype)
+        cdef cl_uint offset = 0
+        cdef cl_int errcode
+        cdef cl_mem mem = clCreateBuffer(self._context,
+                                         flags, size * dtype.itemsize,
+                                         NULL, &errcode)
+        if errcode < 0: raise CLError(error_translation_table[errcode])
+        return _createCLTypedBuffer(mem, self, offset, dtype)
+
     def createImage2D(self, size_t width, size_t height,
                       cl_channel_order order, cl_channel_type itype,
                       cl_mem_flags flags = CL_MEM_READ_WRITE ):
@@ -585,11 +640,13 @@ cdef class CLContext(CLObject):
         return _createCLProgram(self, program)
 
     def createBufferLike(self, buf, cl_mem_flags flags = CL_MEM_READ_WRITE):
-        return self.createBuffer(buf.size * buf.itemsize, flags = flags)
+        return self.createTypedBuffer(buf.size, buf.dtype, flags = flags)
 
     property devices:
         def __get__(self):
             return self._devices
+    def __hash__(self):
+        return hash(id(self))
 
 cdef class CLCommand:
     cdef object call(self, CLCommandQueue queue):

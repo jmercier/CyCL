@@ -57,7 +57,7 @@ cdef ${t} _${name}_${t}(${obj_type} obj, ${info_type} param_name):
             cdef cl_int errcode
 %if isinstance(pdefine, tuple):
 <%
-    ret_string = "" 
+    ret_string = ""
 %>\
 %for i, define in enumerate(pdefine):
 <%

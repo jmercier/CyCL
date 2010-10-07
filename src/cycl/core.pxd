@@ -24,6 +24,8 @@
 #
 from libopencl cimport *
 
+cimport numpy as cnp
+
 cdef extern from "pyerrors.h":
     ctypedef class __builtin__.Exception [object PyBaseExceptionObject]: pass
 
@@ -55,6 +57,9 @@ cdef class CLBuffer(CLObject):
     cdef cl_mem                     _mem
     cdef cl_uint                    _offset
     cdef readonly CLContext         _context
+
+cdef class CLTypedBuffer(CLBuffer):
+    cdef readonly cnp.dtype         dtype
 
 cdef class CLMappedBuffer:
     cdef readonly CLBuffer          _buffer
@@ -127,6 +132,14 @@ cdef inline CLBuffer _createCLBuffer(cl_mem mem, CLContext context, cl_uint offs
     instance._mem               = mem
     instance._context           = context
     instance._offset            = offset
+    return instance
+
+cdef inline CLBuffer _createCLTypedBuffer(cl_mem mem, CLContext context, cl_uint offset, cnp.dtype dtype):
+    cdef CLTypedBuffer instance = CLTypedBuffer.__new__(CLTypedBuffer)
+    instance._mem               = mem
+    instance._context           = context
+    instance._offset            = offset
+    instance.dtype              = dtype
     return instance
 
 cdef inline CLCommandQueue _createCLCommandQueue(CLContext context, cl_command_queue queue):

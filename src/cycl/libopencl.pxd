@@ -302,6 +302,11 @@ cdef extern from "CL/cl.h":
                 CL_EVENT_REFERENCE_COUNT                    = 0x11D2
                 CL_EVENT_COMMAND_EXECUTION_STATUS           = 0x11D3
 
+        ctypedef enum cl_kernel_work_group_info:
+                CL_KERNEL_WORK_GROUP_SIZE                   = 0x11B0
+                CL_KERNEL_COMPILE_WORK_GROUP_SIZE           = 0x11B1
+                CL_KERNEL_LOCAL_MEM_SIZE                    = 0x11B2
+
         ctypedef enum cl_profiling_info:
                 CL_PROFILING_COMMAND_QUEUED                 = 0x1280
                 CL_PROFILING_COMMAND_SUBMIT                 = 0x1281
@@ -321,7 +326,7 @@ cdef extern from "CL/cl.h":
         ctypedef enum cl_context_properties:
                 CL_CONTEXT_PLATFORM                         = 0x1084
 
-        ctypedef enum cl_kernel_workgroup_info:
+        ctypedef enum cl_kernel_work_group_info:
                 CL_KERNEL_WORK_GROUP_SIZE                   = 0x11B0
                 CL_KERNEL_COMPILE_WORK_GROUP_SIZE           = 0x11B1
                 CL_KERNEL_LOCAL_MEM_SIZE                    = 0x11B2
@@ -473,6 +478,13 @@ cdef extern from "CL/cl.h":
                                     void *,
                                     size_t *) nogil
 
+        cdef cl_int clGetKernelWorkGroupInfo(cl_kernel,
+                                             cl_device_id,
+                                             cl_kernel_work_group_info,
+                                             size_t,
+                                             void *,
+                                             size_t *) nogil
+
         cdef cl_int clSetKernelArg(cl_kernel,
                                    cl_uint,
                                    size_t,
@@ -499,6 +511,27 @@ cdef extern from "CL/cl.h":
                                            cl_uint,
                                            cl_event *,
                                            cl_event *) nogil
+
+
+        cdef cl_int clEnqueueCopyImageToBuffer(cl_command_queue,
+                                               cl_mem,
+                                               cl_mem,
+                                               size_t *,
+                                               size_t *,
+                                               size_t,
+                                               cl_uint,
+                                               cl_event *,
+                                               cl_event *) nogil
+
+        cdef cl_int clEnqueueCopyBufferToImage(cl_command_queue,
+                                               cl_mem,
+                                               cl_mem,
+                                               size_t,
+                                               size_t *,
+                                               size_t *,
+                                               cl_uint,
+                                               cl_event *,
+                                               cl_event *) nogil
 
 
         cdef cl_int clEnqueueWriteBuffer(cl_command_queue,

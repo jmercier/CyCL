@@ -5,6 +5,8 @@ cdef extern from "numpy/arrayobject.h":
     void import_array() except *
 import_array()
 
+from stdlib cimport *
+
 cdef class CLCopyBuffer(CLCommand):
     """
     This command copy a device buffer to another device buffer
@@ -27,6 +29,64 @@ cdef class CLCopyBuffer(CLCommand):
                                       &event)
         if errcode < 0: raise translateError(errcode)
         return _createCLEvent(event, queue)
+
+cdef class CLCopyImageToBuffer(CLCommand):
+    """
+    This command copy an Image to a Buffer.
+    """
+    def __cinit__(self, CLImage src, CLBuffer dst, cl_bool blocking = True):
+        self._src = src
+        self._dst = dst
+        self._origin[0] = self._origin[1] = self._origin[2] = 0
+        self._shape[2] = 0
+        for i in xrange(src.ndim):
+            self._shape[i] = src.shape[i]
+
+    cdef object call(self, CLCommandQueue queue):
+        cdef cl_event event
+        cdef cl_int errcode
+        errcode = clEnqueueCopyImageToBuffer(queue._command_queue,
+                                             self._src._mem,
+                                             self._dst._mem,
+                                             self._origin,
+                                             self._shape,
+                                             0,
+                                             0, NULL,
+                                             &event)
+
+        if errcode < 0: raise translateError(errcode)
+        return _createCLEvent(event, queue)
+
+
+cdef class CLCopyBufferToImage(CLCommand):
+    """
+    This command copy a Buffer to an Image.
+    """
+    def __cinit__(self, CLBuffer dst, CLImage src, cl_bool blocking = True):
+        self._src = src
+        self._dst = dst
+        self._origin[0] = self._origin[1] = self._origin[2] = 0
+        self._shape[2] = 0
+        for i in xrange(src.ndim):
+            self._shape[i] = src.shape[i]
+
+    cdef object call(self, CLCommandQueue queue):
+        cdef cl_event event
+        cdef cl_int errcode
+        errcode = clEnqueueCopyBufferToImage(queue._command_queue,
+                                             self._src._mem,
+                                             self._dst._mem,
+                                             0,
+                                             self._origin,
+                                             self._shape,
+                                             0, NULL,
+                                             &event)
+
+        if errcode < 0: raise translateError(errcode)
+        return _createCLEvent(event, queue)
+
+
+
 
 cdef class CLReadBufferNDArray(CLCommand):
     """
@@ -62,11 +122,21 @@ cdef class CLNDRangeKernel(CLCommand):
     """
     def __cinit__(self, CLKernel kernel,
                   tuple global_work_size = (1,1,1),
-                  tuple local_work_size = (1,1,1)):
+                  tuple local_work_size = None):
         self._kernel = kernel
         for i in xrange(3):
             self._gws[i] = global_work_size[i]
-            self._lws[i] = local_work_size[i]
+        if local_work_size is None:
+            self._lws = NULL
+        else:
+            self._lws = <size_t *>malloc(sizeof(size_t) * 3)
+            for i in xrange(3):
+                self._lws[i] = local_work_size[i]
+
+    def __dealloc__(self):
+        if self._lws != NULL:
+            free(self._lws)
+
 
 
     cdef object call(self, CLCommandQueue queue):
